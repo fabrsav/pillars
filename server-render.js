@@ -128,7 +128,52 @@ app.post('/api/groq', async (req, res) => {
   }
 });
 
-// Simple in-memory storage for demo (in production, use a real database)
+// ==================== CLOUD STORAGE API ====================
+// These endpoints sync with JSONBin.io for bidirectional sync with local PC
+
+app.get('/api/store/:key', async (req, res) => {
+  const key = req.params.key;
+  
+  try {
+    const allData = await cloudGetAll();
+    if (allData[key] !== undefined) {
+      return res.json(allData[key]);
+    }
+    return res.status(404).send('Not found');
+  } catch (error) {
+    console.error(`[Store] Error getting ${key}:`, error);
+    return res.status(500).send('Error reading data');
+  }
+});
+
+app.post('/api/store/:key', async (req, res) => {
+  const key = req.params.key;
+  
+  try {
+    const success = await cloudSet(key, req.body);
+    if (success) {
+      return res.json({ success: true });
+    }
+    return res.status(500).json({ error: 'Failed to save to cloud' });
+  } catch (error) {
+    console.error(`[Store] Error saving ${key}:`, error);
+    return res.status(500).send('Error writing data');
+  }
+});
+
+// Log error endpoint
+app.post('/api/log-error', (req, res) => {
+  console.error('[Client Error]', req.body);
+  res.json({ logged: true });
+});
+
+// Replace text endpoint (compatibility)
+app.post('/api/replace-text', async (req, res) => {
+  // This would need to be handled by the client
+  res.json({ success: true, message: 'Text replacement handled by client' });
+});
+
+// Simple in-memory storage fallback (when cloud not configured)
 let pillarsData = {};
 
 // Load initial data if exists
