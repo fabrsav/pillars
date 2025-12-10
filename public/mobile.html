@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <title>Pillars Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .task-item { transition: all 0.2s ease; }
+        .task-item:active { transform: scale(0.98); opacity: 0.8; }
+        .completed { opacity: 0.5; }
+        .completed .task-text { text-decoration: line-through; }
+        .pillar-btn.active { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 20px rgba(255,255,255,0.15);
+        }
+        .sync-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="text-white pb-24">
+    <div id="app" class="p-4">
+        <!-- Debug: Loading indicator -->
+        <div id="loadingIndicator" class="text-center py-8 text-slate-400 text-sm">
+            Caricamento app...
+        </div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold tracking-tight">PILLARS</h1>
+            <div id="syncStatus" class="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-slate-800">
+                <span id="syncDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span id="syncText">Offline</span>
+            </div>
+        </div>
+
+        <!-- Setup -->
+        <div id="setupPanel" class="mb-6 p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+            <h3 class="font-bold mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                Cloud Sync
+            </h3>
+            <p class="text-xs text-slate-400 mb-3">Inserisci le credenziali JSONBin.io (le stesse del PC)</p>
+            
+            <input type="password" id="apiKeyInput" placeholder="X-Master-Key" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm mb-2">
+            <input type="text" id="binIdInput" placeholder="Bin ID" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm mb-3">
+            
+            <button onclick="connectCloud()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold text-sm transition-colors">
+                Connetti
+            </button>
+        </div>
+
+        <!-- Main Content (hidden until connected) -->
+        <div id="mainContent" class="hidden">
+            <!-- Pillar Tabs -->
+            <div id="pillars" class="grid grid-cols-4 gap-2 mb-6">
+                <button onclick="selectPillar('wealth')" data-pillar="wealth" class="pillar-btn p-3 rounded-xl bg-emerald-900/30 border border-emerald-500/30 text-center active">
+                    <div class="text-2xl mb-1">💰</div>
+                    <div class="text-[10px] font-bold text-emerald-400">SOLDI</div>
+                </button>
+                <button onclick="selectPillar('health')" data-pillar="health" class="pillar-btn p-3 rounded-xl bg-red-900/30 border border-red-500/30 text-center">
+                    <div class="text-2xl mb-1">💪</div>
+                    <div class="text-[10px] font-bold text-red-400">FISICO</div>
+                </button>
+                <button onclick="selectPillar('brain')" data-pillar="brain" class="pillar-btn p-3 rounded-xl bg-indigo-900/30 border border-indigo-500/30 text-center">
+                    <div class="text-2xl mb-1">🧠</div>
+                    <div class="text-[10px] font-bold text-indigo-400">MENTE</div>
+                </button>
+                <button onclick="selectPillar('heart')" data-pillar="heart" class="pillar-btn p-3 rounded-xl bg-pink-900/30 border border-pink-500/30 text-center">
+                    <div class="text-2xl mb-1">❤️</div>
+                    <div class="text-[10px] font-bold text-pink-400">CUORE</div>
+                </button>
+            </div>
+
+            <!-- Routine Selector -->
+            <div id="routines" class="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4"></div>
+
+            <!-- Tasks -->
+            <div id="tasks" class="space-y-2"></div>
+        </div>
+
+        <!-- Progress Bar (fixed bottom) -->
+        <div id="progressBar" class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur p-4 border-t border-slate-800 hidden">
+            <div class="flex justify-between items-center mb-2">
+                <span id="routineTitle" class="text-sm font-bold text-white">Routine</span>
+                <span id="progressPercent" class="text-lg font-bold">0%</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div id="progressFill" class="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === STATE ===
+        let config = JSON.parse(localStorage.getItem('pillars_mobile_config') || '{}');
+        let data = null;
+        let currentPillar = 'wealth';
+        let currentRoutine = null;
+
+        // Hide loading indicator once app is ready
+        document.getElementById('loadingIndicator').style.display = 'none';
+        
+        // Load saved config
+        if (config.apiKey) {
+            document.getElementById('apiKeyInput').value = config.apiKey;
+            document.getElementById('binIdInput').value = config.binId || '';
+            connectCloud();
+        } else {
+            // console.log('Nessuna configurazione salvata - mostrando pannello setup');
+        }
+
+        // === CLOUD FUNCTIONS ===
+        async function connectCloud() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const binId = document.getElementById('binIdInput').value.trim();
+            
+            if (!apiKey) return alert('Inserisci X-Master-Key');
+            
+            updateSyncStatus('syncing', 'Connessione...');
+            
+            try {
+                let url = binId 
+                    ? `https://api.jsonbin.io/v3/b/${binId}/latest`
+                    : 'https://api.jsonbin.io/v3/c/uncategorized/bins';
+                
+                const res = await fetch(url, {
+                    headers: { 'X-Master-Key': apiKey }
+                });
+                
+                if (!res.ok) throw new Error('Credenziali non valide');
+                
+                const result = await res.json();
+                
+                if (binId) {
+                    // Loaded existing bin
+                    data = result.record?.pillars_db_v10 || result.record;
+                } else {
+                    // No bin - need to get one or create
+                    if (result.length > 0) {
+                        // Use first bin found
+                        const firstBinId = result[0].record;
+                        document.getElementById('binIdInput').value = firstBinId;
+                        config.binId = firstBinId;
+                        return connectCloud(); // Retry with bin ID
+                    }
+                    throw new Error('Nessun bin trovato. Crea prima i dati dal PC.');
+                }
+                
+                // Save config
+                config = { apiKey, binId };
+                localStorage.setItem('pillars_mobile_config', JSON.stringify(config));
+                
+                // Show main content
+                document.getElementById('setupPanel').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                document.getElementById('progressBar').classList.remove('hidden');
+                
+                updateSyncStatus('synced', 'Connesso');
+                selectPillar('wealth');
+                
+            } catch (err) {
+                console.error(err);
+                updateSyncStatus('error', err.message);
+            }
+        }
+
+        async function saveToCloud() {
+            if (!config.apiKey || !config.binId) return;
+            
+            updateSyncStatus('syncing', 'Salvataggio...');
+            
+            try {
+                const payload = {
+                    pillars_db_v10: data,
+                    _lastModified: Date.now(),
+                    _device: 'android-mobile'
+                };
+                
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${config.binId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': config.apiKey
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!res.ok) throw new Error('Salvataggio fallito');
+                
+                updateSyncStatus('synced', 'Salvato');
+            } catch (err) {
+                console.error(err);
+                updateSyncStatus('error', 'Errore sync');
+            }
+        }
+
+        function updateSyncStatus(status, text) {
+            const dot = document.getElementById('syncDot');
+            const label = document.getElementById('syncText');
+            
+            dot.className = 'w-2 h-2 rounded-full';
+            
+            if (status === 'syncing') {
+                dot.classList.add('bg-amber-400', 'sync-pulse');
+            } else if (status === 'synced') {
+                dot.classList.add('bg-emerald-400');
+            } else if (status === 'error') {
+                dot.classList.add('bg-red-400');
+            } else {
+                dot.classList.add('bg-slate-500');
+            }
+            
+            label.textContent = text;
+        }
+
+        // === UI FUNCTIONS ===
+        function selectPillar(pillar) {
+            currentPillar = pillar;
+            currentRoutine = null;
+            
+            document.querySelectorAll('.pillar-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.pillar === pillar) btn.classList.add('active');
+            });
+            
+            renderRoutines();
+        }
+
+        function renderRoutines() {
+            const container = document.getElementById('routines');
+            const routines = data?.[currentPillar] || [];
+            
+            container.innerHTML = routines.map((r, i) => `
+                <button onclick="selectRoutine('${r.id}')" 
+                    class="flex-shrink-0 px-4 py-2 rounded-xl border text-sm font-medium whitespace-nowrap transition-all
+                    ${currentRoutine?.id === r.id 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-slate-800/50 border-slate-700 text-slate-400'}">
+                    ${r.title}
+                </button>
+            `).join('');
+            
+            if (!currentRoutine && routines.length > 0) {
+                selectRoutine(routines[0].id);
+            }
+        }
+
+        function selectRoutine(id) {
+            const routines = data?.[currentPillar] || [];
+            currentRoutine = routines.find(r => r.id === id || r.id === parseInt(id));
+            renderRoutines();
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks');
+            
+            if (!currentRoutine?.tasks) {
+                container.innerHTML = '<div class="text-center text-slate-500 py-8">Nessun task</div>';
+                updateProgress(0);
+                return;
+            }
+            
+            const tasks = currentRoutine.tasks;
+            const completed = tasks.filter(t => t.completed).length;
+            const percent = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+            
+            container.innerHTML = tasks.map(t => `
+                <div onclick="toggleTask('${t.id}')" 
+                    class="task-item flex items-center gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700 cursor-pointer ${t.completed ? 'completed' : ''}">
+                    <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs ${
+                        t.completed ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-600'
+                    }">
+                        ${t.completed ? '✓' : ''}
+                    </div>
+                    <div class="flex-1">
+                        <div class="task-text text-sm ${t.completed ? 'text-slate-500' : 'text-white'}">${t.text}</div>
+                        ${t.reason ? `<div class="text-[10px] text-amber-400/70 mt-1">💡 ${t.reason}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('routineTitle').textContent = currentRoutine.title;
+            updateProgress(percent);
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        async function toggleTask(taskId) {
+            if (!currentRoutine) return;
+            
+            const task = currentRoutine.tasks.find(t => String(t.id) === String(taskId));
+            if (task) {
+                task.completed = !task.completed;
+                renderTasks();
+                await saveToCloud();
+            }
+        }
+    </script>
+</body>
+</html>

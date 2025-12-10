@@ -1,0 +1,12 @@
+# Cloudflare Tunnel Configuration File
+# Replace <TUNNEL-UUID> with your actual tunnel UUID from 'cloudflared tunnel list'
+
+tunnel: <TUNNEL-UUID>
+credentials-file: C:\Users\PC-FabrizioSavona25\.cloudflared\<TUNNEL-UUID>.json
+
+ingress:
+  # Route your domain to the local server
+  - hostname: pillars.yourdomain.com
+    service: http://localhost:3001
+  # Catch-all rule (required)
+  - service: http_status:404

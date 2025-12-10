@@ -1,0 +1,21 @@
+# Local files and secrets
+db/*.json
+error_log.txt
+*.bat
+*.vbs
+node_modules/
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log

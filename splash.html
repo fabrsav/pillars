@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pillars OS - Loading</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%237C3AED'/><rect x='2' y='5' width='3' height='7' fill='white'/><rect x='6' y='3' width='4' height='9' fill='white'/><rect x='11' y='5' width='3' height='7' fill='white'/><rect x='2' y='12' width='12' height='2' fill='white'/></svg>" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #020617; color: #e2e8f0; overflow: hidden; }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #06b6d4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen select-none">
+    <div class="relative mb-8">
+        <div class="absolute inset-0 bg-cyan-500 blur-[40px] opacity-20 rounded-full"></div>
+        <h1 class="text-4xl font-bold tracking-tighter uppercase relative z-10">PILLARS OS</h1>
+    </div>
+    <div class="loader mb-4"></div>
+    <p id="status" class="text-xs font-mono text-slate-500 uppercase tracking-widest animate-pulse">Inizializzazione sistema...</p>
+
+    <script>
+        const targetUrl = 'http://localhost:5173';
+        const statusEl = document.getElementById('status');
+        let attempts = 0;
+
+        function checkServer() {
+            attempts++;
+            if(attempts > 5) statusEl.innerText = "Avvio server...";
+            if(attempts > 15) statusEl.innerText = "Attendi ancora...";
+
+            // Metodo Script Injection per bypassare CORS (file:// -> http://)
+            const script = document.createElement('script');
+            script.src = 'http://localhost:5173/@vite/client';
+            
+            script.onload = () => {
+                statusEl.innerText = "Connesso!";
+                setTimeout(() => {
+                    window.location.replace(targetUrl);
+                }, 500);
+            };
+
+            script.onerror = () => {
+                // Rimuovi lo script fallito e riprova
+                document.head.removeChild(script);
+                setTimeout(checkServer, 1000);
+            };
+
+            document.head.appendChild(script);
+        }
+        
+        // Start checking after 1 second
+        setTimeout(checkServer, 1000);
+    </script>
+</body>
+</html>

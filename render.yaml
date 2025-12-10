@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pillars
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+    healthCheckPath: /
