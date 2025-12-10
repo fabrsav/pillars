@@ -47,14 +47,20 @@ import {
   Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
 } from 'lucide-react';
 
+// --- PILLARS TOKEN FOR API AUTHORIZATION ---
+const PILLARS_TOKEN = typeof import.meta !== "undefined" && "fccgf123" || (typeof window !== "undefined" ? window.PILLARS_TOKEN : "");
+
 // --- HOOK PERSISTENZA LOCALE (BACKEND) ---
 const useStorage = (key, initialValue) => {
   const [value, setValue] = useState(initialValue);
   const [loaded, setLoaded] = useState(false);
 
+  // Prepare headers with authorization if token is available
+  const headers = PILLARS_TOKEN ? { Authorization: `Bearer ${PILLARS_TOKEN}` } : {};
+
   useEffect(() => {
     console.log(`[useStorage] Fetching ${key}...`);
-    fetch(`/api/store/${key}`)
+    fetch(`/api/store/${key}`, { headers })
       .then(res => {
         console.log(`[useStorage] ${key} response status:`, res.status);
         if (res.status === 404) return null;
@@ -76,7 +82,7 @@ const useStorage = (key, initialValue) => {
     if (loaded) {
       fetch(`/api/store/${key}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(value)
       }).catch(err => console.error(`Error saving ${key}:`, err));
     }
