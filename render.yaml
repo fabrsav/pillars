@@ -3,10 +3,10 @@ services:
     name: pillars
     runtime: node
     buildCommand: npm ci && npm run build
-    startCommand: node server.js
+    startCommand: node server-render.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
-    healthCheckPath: /
+    healthCheckPath: /health
