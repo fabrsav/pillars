@@ -6,11 +6,12 @@ export default function GroqKeySetup() {
   const [updateSource, setUpdateSource] = useState(false);
   const [status, setStatus] = useState(null);
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState(localStorage.getItem('pillars_groq_model') || '');
+  const [selectedModel, setSelectedModel] = useState('');
 
   useEffect(() => {
     // Try to load models on mount (may return defaults)
     fetchModels();
+    fetchModelChoice();
   }, []);
 
   async function fetchModels() {
@@ -48,8 +49,29 @@ export default function GroqKeySetup() {
 
   function saveModelChoice(m) {
     setSelectedModel(m);
-    localStorage.setItem('pillars_groq_model', m);
-    setStatus('model_saved');
+    setStatus('saving_model');
+    fetch('/api/groq-model-choice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: m })
+    }).then(async res => {
+      if (res.ok) {
+        setStatus('model_saved');
+      } else {
+        const j = await res.json().catch(()=>null);
+        setStatus('error: ' + (j && j.error ? j.error : String(res.status)));
+      }
+    }).catch(e => setStatus('error: ' + String(e)));
+  }
+
+  async function fetchModelChoice() {
+    try {
+      const res = await fetch('/api/groq-model-choice');
+      const j = await res.json();
+      if (j && j.model) setSelectedModel(j.model);
+    } catch (e) {
+      console.warn('Failed to fetch model choice', e);
+    }
   }
 
   return (
