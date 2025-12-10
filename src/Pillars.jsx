@@ -100,32 +100,21 @@ const logError = async (error, context) => {
 };
 
 // --- CONFIGURAZIONE GROQ API ---
-// NOTA: Usa SEMPRE il modello SMART (reasoning) per tutti i task!
-const MODEL_FAST = 'google/gemini-2.0-flash-001';  // Modello veloce per task semplici
-const MODEL_SMART = 'google/gemini-3-pro-preview';  // Modello top per analisi profonde (Nexus Core)
+// NOTA: Usa SEMPRE il modello SMART per analisi profonde
+const MODEL_FAST = 'llama-3.1-8b-instant';  // Modello veloce per task semplici
+const MODEL_SMART = 'llama-3.3-70b-versatile';  // Modello top per analisi profonde (Nexus Core)
 
-const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, reasoningEffort = 'high') => {
+const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048) => {
   if (!apiKey) throw new Error("MISSING_KEY");
   
   try {
-    // Usa reasoning effort alto per risposte più intelligenti
-    // Consideriamo modello di reasoning qualunque modello tranne il modello "fast".
-    // In questo modo Gemini / Llama / altri modelli "smart" ricevono gli stessi hint di reasoning.
-    const isReasoningModel = model !== MODEL_FAST;
-    
     const requestBody = {
       "model": model,
       "messages": [{ "role": "user", "content": prompt }],
       "temperature": 0.6,  // Ottimale per reasoning (0.5-0.7)
-      "max_completion_tokens": maxTokens,
+      "max_tokens": maxTokens,
       "top_p": 0.95
     };
-    
-    // Aggiungi reasoning effort solo per modelli GPT-OSS
-    if (isReasoningModel) {
-      requestBody.reasoning_effort = reasoningEffort; // 'low', 'medium', 'high'
-      requestBody.include_reasoning = false; // Non includere il reasoning nella risposta (solo il risultato)
-    }
     
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -2154,7 +2143,7 @@ const Pillars = () => {
           setKeyStatus('checking');
           try {
               // Test rapido per validare la chiave (usa modello veloce per non sprecare risorse)
-              await callGroq("Rispondi OK", apiKey, MODEL_FAST, 50, 'low');
+              await callGroq("Rispondi OK", apiKey, MODEL_FAST, 50);
               setKeyStatus('valid');
           } catch (e) {
               if (e.message === "RATE_LIMIT") {
