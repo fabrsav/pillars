@@ -341,6 +341,116 @@ app.post('/api/groq-key/decrypt', (req, res) => {
   }
 });
 
+// Get available Groq models. If server has a decrypted key, try to query Groq API,
+// otherwise return a reasonable default list so the UI can offer choices.
+app.get('/api/groq-models', async (req, res) => {
+  try {
+    const key = decryptedGroqApiKey || GROQ_KEY || process.env.GROQ_API_KEY || null;
+    const defaultModels = [
+      'groq/compound',
+      'groq/standard',
+      'groq/embedded',
+      'groq/text-1'
+    ];
+
+    if (!key) {
+      return res.json({ models: defaultModels, note: 'no_key' });
+    }
+
+    // Try to fetch models from Groq/OpenAI-compatible list endpoint.
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` },
+        method: 'GET'
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        return res.json({ models: defaultModels, note: 'api_error', status: resp.status, detail: text });
+      }
+
+      const payload = await resp.json();
+      // The response shape may vary. Attempt to map to an array of model ids.
+      let models = [];
+      if (Array.isArray(payload.data)) {
+        models = payload.data.map(m => m.id).filter(Boolean);
+      } else if (Array.isArray(payload.models)) {
+        models = payload.models.map(m => m.id || m).filter(Boolean);
+      }
+      if (!models.length) models = defaultModels;
+      return res.json({ models });
+    } catch (e) {
+      return res.json({ models: defaultModels, note: 'fetch_failed', error: String(e) });
+    }
+  } catch (e) {
+    console.error('[/api/groq-models] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Save or read the currently selected model (persisted on server)
+app.get('/api/groq-model-choice', (req, res) => {
+  try {
+    const file = path.join(DB_DIR, 'pillars_groq_model.json');
+    if (!fs.existsSync(file)) return res.json({ model: null });
+    const raw = fs.readFileSync(file, 'utf8');
+    try {
+      const parsed = JSON.parse(raw);
+      return res.json({ model: parsed.model || null });
+    } catch (e) {
+      return res.json({ model: raw || null });
+    }
+  } catch (e) {
+    console.error('[/api/groq-model-choice GET] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.post('/api/groq-model-choice', (req, res) => {
+  try {
+    const { model } = req.body || {};
+    if (!model) return res.status(400).json({ error: 'model required' });
+    const file = path.join(DB_DIR, 'pillars_groq_model.json');
+    fs.mkdirSync(DB_DIR, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ model }, null, 2), 'utf8');
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[/api/groq-model-choice POST] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Proxy endpoint to call Groq/OpenAI-compatible completions using server-side key
+app.post('/api/groq-proxy', requireAuth, async (req, res) => {
+  try {
+    const key = decryptedGroqApiKey || GROQ_KEY || process.env.GROQ_API_KEY || null;
+    if (!key) return res.status(401).json({ error: 'No Groq API key available on server' });
+
+    // Forward request body directly to Groq's OpenAI-compatible endpoint
+    const target = 'https://api.groq.com/openai/v1/chat/completions';
+    const resp = await fetch(target, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body || {})
+    });
+
+    const text = await resp.text();
+    // try to parse as json; if fail, return raw text
+    try {
+      const json = JSON.parse(text);
+      return res.status(resp.status).json(json);
+    } catch (_) {
+      return res.status(resp.status).send(text);
+    }
+  } catch (e) {
+    console.error('[/api/groq-proxy] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Change passphrase: requires currentPassword and newPassword
 app.post('/api/groq-key/change', requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
