@@ -1,8 +1,12 @@
 import Pillars from './Pillars';
+import GroqKeySetup from './GroqKeySetup';
 
 function App() {
   return (
-    <Pillars />
+    <>
+      <GroqKeySetup />
+      <Pillars />
+    </>
   );
 }
 
