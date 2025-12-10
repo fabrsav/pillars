@@ -7,12 +7,33 @@ export default function GroqKeySetup() {
   const [status, setStatus] = useState(null);
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [keyUnlocked, setKeyUnlocked] = useState(false);
+  const [decryptPassword, setDecryptPassword] = useState('');
 
   useEffect(() => {
     // Try to load models on mount (may return defaults)
     fetchModels();
     fetchModelChoice();
+    checkKeyStatus();
   }, []);
+
+  async function checkKeyStatus() {
+    try {
+      const res = await fetch('/api/groq-key');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'decrypted') {
+          setKeyUnlocked(true);
+          setStatus('key_decrypted');
+        }
+      } else if (res.status === 401) {
+        setKeyUnlocked(false);
+        setStatus('key_locked');
+      }
+    } catch (e) {
+      console.warn('Failed to check groq key status', e);
+    }
+  }
 
   async function fetchModels() {
     try {
@@ -41,7 +62,34 @@ export default function GroqKeySetup() {
       const j = await res.json();
       if (res.ok && j.success) {
         setStatus('ok');
+        setKeyUnlocked(true);
         // refresh models now that server may have the key loaded
+        await fetchModels();
+      } else {
+        setStatus('error: ' + (j.error || JSON.stringify(j)));
+      }
+    } catch (e) {
+      setStatus('error: ' + String(e));
+    }
+  }
+
+  async function handleDecrypt(e) {
+    e.preventDefault();
+    if (!decryptPassword || !decryptPassword.trim()) {
+      setStatus('error: password richiesta');
+      return;
+    }
+    setStatus('decrypting');
+    try {
+      const res = await fetch('/api/groq-key/decrypt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: decryptPassword })
+      });
+      const j = await res.json();
+      if (res.ok && j.success) {
+        setStatus('decrypted_ok');
+        setKeyUnlocked(true);
         await fetchModels();
       } else {
         setStatus('error: ' + (j.error || JSON.stringify(j)));
