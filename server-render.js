@@ -210,4 +210,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Pillars server running on port ${PORT}`);
   console.log(`GROQ_KEY configured: ${GROQ_KEY ? 'Yes' : 'No'}`);
+  console.log(`Cloud Storage: ${JSONBIN_API_KEY && JSONBIN_BIN_ID ? 'Enabled (JSONBin.io)' : 'Disabled'}`);
+  if (!JSONBIN_API_KEY) console.log('  Set JSONBIN_API_KEY to enable cloud sync');
+  if (!JSONBIN_BIN_ID) console.log('  Set JSONBIN_BIN_ID to enable cloud sync');
 });
