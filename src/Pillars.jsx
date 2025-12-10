@@ -2163,12 +2163,7 @@ const Pillars = () => {
                   return;
               }
               console.warn("Key validation failed", e);
-              // If it's the hardcoded key failing, treat it as needing setup rather than error
-              if (e.message === "INVALID_KEY" || e.message === "MISSING_KEY") {
-                  setKeyStatus('idle');
-              } else {
-                  setKeyStatus('error');
-              }
+              setKeyStatus('error');
               setShowKeyModal(true);
           }
       };
@@ -2913,12 +2908,12 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
-                  <p className="text-sm text-slate-400 mb-4">{keyStatus === 'idle' ? 'Prima configurazione: imposta una password per cifrare la chiave.' : 'Inserisci la password per decriptare la chiave hardcoded, oppure inserisci una chiave manualmente.'}</p>
+                  <p className="text-sm text-slate-400 mb-4">Inserisci la password per decriptare la chiave hardcoded, oppure inserisci una chiave manualmente.</p>
                   
                   {keyStatus === 'error' && (
                       <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
                           <AlertTriangle size={16}/>
-                          Password errata o chiave non valida.
+                          Chiave non valida o password errata.
                       </div>
                   )}
 
@@ -2940,7 +2935,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                           if(e.key === 'Enter') {
                             const password = e.target.value;
                             if (password) {
-                              setKeyStatus('checking');
                               try {
                                 const response = await fetch('/api/groq-key/decrypt', {
                                   method: 'POST',
@@ -2953,12 +2947,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                                   setShowKeyModal(false);
                                   setKeyStatus('valid');
                                   return;
-                                } else {
-                                  const txt = await response.text();
-                                  console.warn('/api/groq-key/decrypt returned', response.status, txt);
-                                  if (response.status !== 401) {
-                                    alert('Decryption request failed: ' + response.status + '\n' + (txt || '')); 
-                                  }
                                 }
 
                                 // If decrypt failed (no stored encrypted key), try initial setup
@@ -2975,21 +2963,15 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                                       setShowKeyModal(false);
                                       setKeyStatus('valid');
                                       return;
-                                    } else {
-                                      const txt = await setupResp.text();
-                                      console.warn('/api/groq-key/setup failed:', setupResp.status, txt);
                                     }
                                   } catch (se) {
-                                    console.error('Setup request failed', se);
+                                    // fall through to error
                                   }
                                 }
 
                                 setKeyStatus('error');
-                                alert('Decryption failed. Controlla la password o usa "Imposta passphrase".');
                               } catch (error) {
-                                console.error('Decrypt request error', error);
                                 setKeyStatus('error');
-                                alert('Errore di rete durante la richiesta. Vedi console per dettagli.');
                               }
                             }
                           }
@@ -3028,7 +3010,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                           const manualKey = document.getElementById('manual-key').value;
                             
                           if (password) {
-                            setKeyStatus('checking');
                             try {
                               const response = await fetch('/api/groq-key/decrypt', {
                                 method: 'POST',
@@ -3057,21 +3038,10 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                                     setShowKeyModal(false);
                                     setKeyStatus('valid');
                                     return;
-                                  } else {
-                                    const txt = await setupResp.text();
-                                    console.warn('/api/groq-key/setup failed:', setupResp.status, txt);
-                                    alert('Impostazione passphrase fallita: ' + (txt || setupResp.status));
                                   }
-                                } catch (se) {
-                                  console.error('Setup request error', se);
-                                  alert('Errore nella richiesta di setup: vedi console');
-                                }
+                                } catch (se) {}
                               }
-                            } catch (error) {
-                              console.error('Decrypt request error', error);
-                              alert('Errore di rete durante la richiesta. Vedi console per dettagli.');
-                            }
-                            setKeyStatus('error');
+                            } catch (error) {}
                           }
                             
                           if (manualKey) {
