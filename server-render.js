@@ -1,6 +1,7 @@
 /**
  * Simplified server for Render.com deployment
  * Serves the static Vite build and provides API proxy endpoints
+ * Uses JSONBin.io for cloud storage (bidirectional sync with local PC)
  */
 
 import express from 'express';
@@ -21,6 +22,78 @@ app.use(express.json({ limit: '50mb' }));
 
 // Environment variables for API keys (set in Render dashboard)
 const GROQ_KEY = process.env.GROQ_KEY || null;
+const JSONBIN_API_KEY = process.env.JSONBIN_API_KEY || null;
+const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID || null;
+const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
+
+// In-memory cache
+let cloudCache = {};
+let cloudCacheTime = 0;
+const CACHE_TTL = 3000; // 3 seconds
+
+// Cloud storage functions
+async function cloudGetAll() {
+  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) return {};
+  
+  const now = Date.now();
+  if (cloudCache && cloudCacheTime && (now - cloudCacheTime < CACHE_TTL)) {
+    return cloudCache;
+  }
+  
+  try {
+    const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    if (!response.ok) return {};
+    const data = await response.json();
+    cloudCache = data.record || {};
+    cloudCacheTime = now;
+    return cloudCache;
+  } catch (e) {
+    console.error('[CloudStorage] Error:', e.message);
+    return {};
+  }
+}
+
+async function cloudSet(key, value) {
+  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) {
+    console.warn('[CloudStorage] Not configured');
+    return false;
+  }
+  
+  try {
+    // Get current data
+    let currentData = await cloudGetAll();
+    
+    // Merge
+    currentData[key] = value;
+    currentData._lastModified = new Date().toISOString();
+    currentData._lastModifiedKey = key;
+    currentData._lastModifiedFrom = 'render';
+    
+    // Save
+    const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY
+      },
+      body: JSON.stringify(currentData)
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    // Update cache
+    cloudCache = currentData;
+    cloudCacheTime = Date.now();
+    
+    console.log(`[CloudStorage] Saved ${key}`);
+    return true;
+  } catch (e) {
+    console.error('[CloudStorage] Save error:', e.message);
+    return false;
+  }
+}
 
 // Serve static files from dist folder (Vite build output)
 const distPath = path.join(__dirname, 'dist');
