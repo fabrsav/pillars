@@ -7,33 +7,12 @@ export default function GroqKeySetup() {
   const [status, setStatus] = useState(null);
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
-  const [keyUnlocked, setKeyUnlocked] = useState(false);
-  const [decryptPassword, setDecryptPassword] = useState('');
 
   useEffect(() => {
     // Try to load models on mount (may return defaults)
     fetchModels();
     fetchModelChoice();
-    checkKeyStatus();
   }, []);
-
-  async function checkKeyStatus() {
-    try {
-      const res = await fetch('/api/groq-key');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.status === 'decrypted') {
-          setKeyUnlocked(true);
-          setStatus('key_decrypted');
-        }
-      } else if (res.status === 401) {
-        setKeyUnlocked(false);
-        setStatus('key_locked');
-      }
-    } catch (e) {
-      console.warn('Failed to check groq key status', e);
-    }
-  }
 
   async function fetchModels() {
     try {
@@ -62,34 +41,7 @@ export default function GroqKeySetup() {
       const j = await res.json();
       if (res.ok && j.success) {
         setStatus('ok');
-        setKeyUnlocked(true);
         // refresh models now that server may have the key loaded
-        await fetchModels();
-      } else {
-        setStatus('error: ' + (j.error || JSON.stringify(j)));
-      }
-    } catch (e) {
-      setStatus('error: ' + String(e));
-    }
-  }
-
-  async function handleDecrypt(e) {
-    e.preventDefault();
-    if (!decryptPassword || !decryptPassword.trim()) {
-      setStatus('error: password richiesta');
-      return;
-    }
-    setStatus('decrypting');
-    try {
-      const res = await fetch('/api/groq-key/decrypt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: decryptPassword })
-      });
-      const j = await res.json();
-      if (res.ok && j.success) {
-        setStatus('decrypted_ok');
-        setKeyUnlocked(true);
         await fetchModels();
       } else {
         setStatus('error: ' + (j.error || JSON.stringify(j)));
@@ -175,17 +127,6 @@ export default function GroqKeySetup() {
 
   return (
     <div style={{padding:8,background:'#f8fafc',borderBottom:'1px solid #e2e8f0'}}>
-      {!keyUnlocked && (
-        <div style={{marginBottom:8,padding:8,background:'#fff7ed',border:'1px solid #ffedd5'}}>
-          <div style={{marginBottom:6,fontSize:13,fontWeight:600}}>Chiave Groq bloccata o assente</div>
-          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-            <input value={decryptPassword} onChange={e=>setDecryptPassword(e.target.value)} placeholder="Password per sbloccare" type="password" style={{minWidth:220}} />
-            <button onClick={handleDecrypt}>Sblocca</button>
-            <small style={{color:'#7f1d1d'}}>Se non hai una chiave cifrata, usa il form sottostante per configurarla.</small>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSetup} style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
         <label style={{fontSize:12}}>API Key:</label>
         <input value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk_... or leave blank to use existing" style={{minWidth:220}} />
@@ -209,16 +150,6 @@ export default function GroqKeySetup() {
           {models.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
         {selectedModel && <small style={{marginLeft:8}}>Salvato: {selectedModel}</small>}
-      </div>
-
-      <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:8}}>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <input value={testPrompt} onChange={e=>setTestPrompt(e.target.value)} style={{flex:1}} />
-          <button onClick={runTest} disabled={testLoading}>{testLoading ? '...' : 'Esegui test'}</button>
-        </div>
-        <div style={{background:'#ffffff',padding:8,border:'1px solid #e2e8f0',minHeight:40}}>
-          {testResponse ? <pre style={{whiteSpace:'pre-wrap',margin:0}}>{typeof testResponse === 'string' ? testResponse : JSON.stringify(testResponse, null, 2)}</pre> : <small>Nessuna risposta ancora</small>}
-        </div>
       </div>
     </div>
   );
