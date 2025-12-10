@@ -27,6 +27,10 @@ export default function GroqKeySetup() {
 
   async function handleSetup(e) {
     e.preventDefault();
+    if (!password || !password.trim()) {
+      setStatus('error: password required to encrypt key');
+      return;
+    }
     setStatus('working');
     try {
       const res = await fetch('/api/groq-key/setup', {
@@ -71,6 +75,53 @@ export default function GroqKeySetup() {
       if (j && j.model) setSelectedModel(j.model);
     } catch (e) {
       console.warn('Failed to fetch model choice', e);
+    }
+  }
+
+  const [testPrompt, setTestPrompt] = useState('Say hello in Italian and mention the selected model.');
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResponse, setTestResponse] = useState(null);
+
+  async function runTest() {
+    if (!selectedModel) {
+      setStatus('error: seleziona prima un modello');
+      return;
+    }
+    setTestLoading(true);
+    setTestResponse(null);
+    setStatus('testing');
+    try {
+      const body = {
+        model: selectedModel,
+        messages: [{ role: 'user', content: testPrompt }],
+        max_tokens: 200
+      };
+
+      const res = await fetch('/api/groq-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        // try to extract assistant reply
+        if (json && json.choices && Array.isArray(json.choices) && json.choices[0]) {
+          const msg = json.choices[0].message || json.choices[0].text || json.choices[0].delta || json.choices[0];
+          setTestResponse(msg);
+        } else {
+          setTestResponse(json);
+        }
+      } catch (e) {
+        setTestResponse(text);
+      }
+      setStatus('test_ok');
+    } catch (e) {
+      setTestResponse(null);
+      setStatus('error: ' + String(e));
+    } finally {
+      setTestLoading(false);
     }
   }
 
