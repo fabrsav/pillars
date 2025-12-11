@@ -2816,6 +2816,12 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
+      {/* Visible test banner for verifying deploys */}
+      <div className="fixed top-4 right-4 z-50 pointer-events-none">
+        <div className="bg-blue-600/90 text-white px-3 py-1 rounded-md text-sm shadow-md pointer-events-auto">
+          TEST DEPLOY — updated: <span className="font-mono">{new Date().toLocaleString()}</span>
+        </div>
+      </div>
       
       {/* API KEY MODAL */}
       {showKeyModal && (
