@@ -1,0 +1,20 @@
+[
+  {
+    "id": "razor-1",
+    "name": "Rasoio elettrico",
+    "connector": "Micro USB",
+    "magneticMount": true,
+    "base": false,
+    "cable": false,
+    "notes": "Basetta e cavo mancanti"
+  },
+  {
+    "id": "phone-1",
+    "name": "Caricabatterie telefono",
+    "connector": "USB-C",
+    "magneticMount": true,
+    "base": true,
+    "cable": true,
+    "notes": "Tutto presente"
+  }
+]

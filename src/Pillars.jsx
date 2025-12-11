@@ -32,6 +32,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import FabricConfigurator from './FabricConfigurator';
+import DailyItems from './DailyItems';
 import DeadlineCountdown from './DeadlineCountdown';
 import { 
   CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
@@ -584,49 +585,16 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
-          <button 
-            onClick={async () => {
-              const password = document.getElementById('decrypt-password').value;
-              const manualKey = document.getElementById('manual-key').value;
-                            
-              if (password) {
-                try {
-                  const response = await fetch('/api/groq-key/decrypt', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                  });
-                  if (response.ok) {
-                    const data = await response.json();
-                    setApiKey(data.key);
-                    setShowKeyModal(false);
-                    setKeyStatus('valid');
-                    return;
-                  }
-
-                  if (response.status === 401) {
-                    // Try initial setup: encrypt hardcoded PLAINTEXT_GROQ_KEY or provided key on server
-                    try {
-                      const setupResp = await fetch('/api/groq-key/setup', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ password, apiKey: manualKey || undefined })
-                      });
-                      if (setupResp.ok) {
-                        const d = await setupResp.json();
-                        if (d.key) setApiKey(d.key);
-                        setShowKeyModal(false);
-                        setKeyStatus('valid');
-                        return;
-                      }
-                    } catch (se) {}
-                  }
-                } catch (error) {}
-              }
-                            
+          <button
+            onClick={() => {
+              const manualKey = document.getElementById('manual-key')?.value;
               if (manualKey) {
                 setApiKey(manualKey);
                 setShowKeyModal(false);
+                setKeyStatus('valid');
+              } else {
+                setKeyStatus('error');
+                setShowKeyModal(true);
               }
             }}
             className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
@@ -637,38 +605,19 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                 <>
                   <div className="mt-3">
                     <button
-                      onClick={async () => {
-                        const password = document.getElementById('decrypt-password').value;
-                        const manualKey = document.getElementById('manual-key').value;
-                        if (!password) { setKeyStatus('error'); return; }
-
-                        // Ask user to confirm updating source file
-                        const willUpdateSource = window.confirm('Vuoi aggiornare il file groq-key-manager.js e rimuovere la chiave in chiaro dal sorgente? (consigliato)');
-
-                        try {
-                          const resp = await fetch('/api/groq-key/setup', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ password, apiKey: manualKey || undefined, updateSource: willUpdateSource })
-                          });
-                          if (resp.ok) {
-                            const d = await resp.json();
-                            if (d.key) setApiKey(d.key);
-                            if (d.updatedSource === true) {
-                              console.log('groq-key-manager.js aggiornato con successo.');
-                            } else if (d.updatedSource === false && willUpdateSource) {
-                              console.warn('Aggiornamento del file sorgente fallito:', d.updateError);
-                              alert('Aggiornamento del file sorgente fallito: ' + (d.updateError || 'unknown'));
-                            }
-                            setShowKeyModal(false);
-                            setKeyStatus('valid');
-                          } else {
-                            setKeyStatus('error');
-                          }
-                        } catch (e) { setKeyStatus('error'); }
+                      onClick={() => {
+                        const manualKey = document.getElementById('manual-key')?.value;
+                        if (!manualKey) { setKeyStatus('error'); return; }
+                        const willUpdateSource = window.confirm('Vuoi aggiornare il file groq-key-manager.js e rimuovere la chiave in chiaro dal sorgente? (non supportato in modalità sessione)');
+                        if (willUpdateSource) {
+                          alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
+                        }
+                        setApiKey(manualKey);
+                        setShowKeyModal(false);
+                        setKeyStatus('valid');
                       }}
                       className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
-                    >Imposta passphrase (prima configurazione)</button>
+                    >Imposta passphrase (sessione)</button>
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-2">
@@ -2070,8 +2019,8 @@ const GlobalTextEditor = ({ data, setData }) => {
 const Pillars = () => {
   const [data, setData] = useStorage('pillars_db_v10', INITIAL_DATA);
   
-  const [apiKey, setApiKey, apiKeyLoaded] = useStorage('pillars_groq_key', '');
-  
+  const [apiKey, setApiKey] = useState('');
+
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
   
@@ -2108,68 +2057,33 @@ const Pillars = () => {
     };
   }, []);
 
-  // VALIDAZIONE API KEY ALL'AVVIO - Try to get encrypted key from server first
+  // VALIDAZIONE API KEY ALL'AVVIO - Mostra il modal ogni volta che l'app viene aperta
   useEffect(() => {
-      if (!apiKeyLoaded) return; // Attendi che la chiave sia caricata
+    const checkKey = async () => {
+      if (!apiKey) {
+        setKeyStatus('idle');
+        setShowKeyModal(true);
+        return;
+      }
 
-      const checkKey = async () => {
-              // Treat very short/placeholder values as missing to avoid false validation errors
-              if (apiKey && apiKey.trim().length < 20) {
-                setApiKey('');
-                setKeyStatus('idle');
-                setShowKeyModal(true);
-                return;
-              }
+      setKeyStatus('checking');
+      try {
+        await callGroq("Rispondi OK", apiKey, MODEL_FAST, 50, 'low');
+        setKeyStatus('valid');
+      } catch (e) {
+        if (e.message === "RATE_LIMIT") {
+          console.warn("Key validation rate limited, assuming valid.");
+          setKeyStatus('valid');
+          return;
+        }
+        console.warn("Key validation failed", e);
+        setKeyStatus('error');
+        setShowKeyModal(true);
+      }
+    };
 
-              // First, try to get the key from the encrypted server store
-              if (!apiKey) {
-              let response = null;
-              try {
-                response = await fetch('/api/groq-key');
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.key) {
-                    console.log('✅ Using encrypted key from server');
-                    setApiKey(data.key);
-                    setKeyStatus('valid');
-                    return;
-                  }
-                }
-              } catch (error) {
-                console.log('No encrypted key available on server, falling back to manual entry');
-              }
-
-              // If no encrypted key, show modal.
-              // Differentiate HTTP responses: 401 (locked) or 404 (not found)
-              // should show the modal in neutral/setup state instead of 'error'.
-              if (response && (response.status === 401 || response.status === 404)) {
-                setKeyStatus('idle');
-              } else {
-                setKeyStatus('error');
-              }
-              setShowKeyModal(true);
-              return;
-            }
-
-          setKeyStatus('checking');
-          try {
-              // Test rapido per validare la chiave (usa modello veloce per non sprecare risorse)
-              await callGroq("Rispondi OK", apiKey, MODEL_FAST, 50, 'low');
-              setKeyStatus('valid');
-          } catch (e) {
-              if (e.message === "RATE_LIMIT") {
-                  console.warn("Key validation rate limited, assuming valid.");
-                  setKeyStatus('valid');
-                  return;
-              }
-              console.warn("Key validation failed", e);
-              setKeyStatus('error');
-              setShowKeyModal(true);
-          }
-      };
-      
-      checkKey();
-  }, [apiKeyLoaded]);
+    checkKey();
+  }, []);
 
   const [activeTab, setActiveTab] = useState('wealth');
   const [activeRoutineId, setActiveRoutineId] = useState(null);
@@ -2908,7 +2822,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
-                  <p className="text-sm text-slate-400 mb-4">Inserisci la password per decriptare la chiave hardcoded, oppure inserisci una chiave manualmente.</p>
+                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
                   
                   {keyStatus === 'error' && (
                       <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
@@ -2925,64 +2839,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                   )}
 
                   <div className="mb-4">
-                    <label className="text-xs text-slate-400 mb-2 block">Password per chiave criptata:</label>
-                    <input 
-                      id="decrypt-password"
-                      type="password" 
-                      placeholder="Password..." 
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
-                        onKeyDown={async (e) => {
-                          if(e.key === 'Enter') {
-                            const password = e.target.value;
-                            if (password) {
-                              try {
-                                const response = await fetch('/api/groq-key/decrypt', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ password })
-                                });
-                                if (response.ok) {
-                                  const data = await response.json();
-                                  setApiKey(data.key);
-                                  setShowKeyModal(false);
-                                  setKeyStatus('valid');
-                                  return;
-                                }
-
-                                // If decrypt failed (no stored encrypted key), try initial setup
-                                if (response.status === 401) {
-                                  try {
-                                    const setupResp = await fetch('/api/groq-key/setup', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ password })
-                                    });
-                                    if (setupResp.ok) {
-                                      const d = await setupResp.json();
-                                      if (d.key) setApiKey(d.key);
-                                      setShowKeyModal(false);
-                                      setKeyStatus('valid');
-                                      return;
-                                    }
-                                  } catch (se) {
-                                    // fall through to error
-                                  }
-                                }
-
-                                setKeyStatus('error');
-                              } catch (error) {
-                                setKeyStatus('error');
-                              }
-                            }
-                          }
-                        }}
-                    />
-                  </div>
-
-                  <div className="text-xs text-slate-500 text-center mb-4">oppure</div>
-
-                  <div className="mb-4">
-                    <label className="text-xs text-slate-400 mb-2 block">Chiave API manuale:</label>
+                    <label className="text-xs text-slate-400 mb-2 block">Chiave API Groq (sessione):</label>
                     <input 
                       id="manual-key"
                       type="password" 
@@ -3005,45 +2862,8 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                         Continua senza AI
                     </button>
                     <button 
-                        onClick={async () => {
-                          const password = document.getElementById('decrypt-password').value;
+                        onClick={() => {
                           const manualKey = document.getElementById('manual-key').value;
-                            
-                          if (password) {
-                            try {
-                              const response = await fetch('/api/groq-key/decrypt', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ password })
-                              });
-                              if (response.ok) {
-                                const data = await response.json();
-                                setApiKey(data.key);
-                                setShowKeyModal(false);
-                                setKeyStatus('valid');
-                                return;
-                              }
-
-                              if (response.status === 401) {
-                                // Try initial setup: encrypt hardcoded PLAINTEXT_GROQ_KEY or provided key on server
-                                try {
-                                  const setupResp = await fetch('/api/groq-key/setup', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ password })
-                                  });
-                                  if (setupResp.ok) {
-                                    const d = await setupResp.json();
-                                    if (d.key) setApiKey(d.key);
-                                    setShowKeyModal(false);
-                                    setKeyStatus('valid');
-                                    return;
-                                  }
-                                } catch (se) {}
-                              }
-                            } catch (error) {}
-                          }
-                            
                           if (manualKey) {
                             setApiKey(manualKey);
                             setShowKeyModal(false);
@@ -3460,6 +3280,9 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
               {/* SPECIAL WIDGETS */}
               <div className={`mt-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeRoutine.tasks?.length > 0 ? 'pt-6 border-t border-slate-800/50' : ''}`}>
                 {renderSpecialWidget()}
+                <div className="mt-6">
+                  <DailyItems />
+                </div>
               </div>
 
             </div>
