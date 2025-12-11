@@ -579,6 +579,55 @@ app.post('/api/log-error', (req, res) => {
   res.json({ success: true });
 });
 
+// Trigger a redeploy on Render (hard reset - clear cache + redeploy)
+app.post('/api/render/hard-reset', requireAuth, async (req, res) => {
+  try {
+    const RENDER_API_KEY = process.env.RENDER_API_KEY || null;
+    const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || null;
+    const RENDER_USE_CLI = process.env.RENDER_USE_CLI === 'true' || false;
+    const RENDER_CLI_CMD = process.env.RENDER_CLI_CMD || null; // override CLI command if needed
+
+    if (RENDER_USE_CLI && RENDER_CLI_CMD) {
+      // Execute a configured CLI command (for environments that have Render CLI available)
+      exec(RENDER_CLI_CMD, { windowsHide: true }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('[Render Hard Reset] CLI error:', err, stderr);
+          return res.status(500).json({ success: false, error: 'cli_error', message: stderr || err.message });
+        }
+        return res.json({ success: true, mode: 'cli', stdout: stdout });
+      });
+      return;
+    }
+
+    if (!RENDER_API_KEY || !RENDER_SERVICE_ID) {
+      return res.status(400).json({ success: false, error: 'missing_config', message: 'RENDER_API_KEY or RENDER_SERVICE_ID not configured' });
+    }
+
+    // Use Render simple deploy endpoint used by existing GitHub action
+    const url = `https://api.render.com/deploy/${RENDER_SERVICE_ID}`;
+    const body = { commit: req.body?.commit || 'manual-hard-reset', clear_cache: true };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RENDER_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const resultText = await response.text();
+    if (!response.ok) {
+      console.error('[Render Hard Reset] API error', response.status, resultText);
+      return res.status(502).json({ success: false, error: 'render_api_error', status: response.status, body: resultText });
+    }
+
+    let respData;
+    try { respData = JSON.parse(resultText); } catch (e) { respData = { raw: resultText }; }
+    return res.json({ success: true, mode: 'api', resp: respData });
+  } catch (e) {
+    console.error('[Render Hard Reset] Exception', e);
+    return res.status(500).json({ success: false, error: 'internal_error', message: e.message });
+  }
+});
+
 app.post('/api/replace-text', (req, res) => {
   const { original, replacement } = req.body || {};
   if (!original) return res.status(400).json({ error: 'original required' });

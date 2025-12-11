@@ -62,3 +62,17 @@ Se preferisci, Railway offre anche un piano freemium simile. Contattami se vuoi 
 - **Build fails:** verifica che `npm run build` funzioni localmente (crea cartella `dist`).
 - **App non parte:** controlla i log in Render dashboard → Logs.
 - **Cold start lungo:** normale nel piano free; considera un upgrade o un ping keepalive.
+
+## Hard reset / Forzare un redeploy (UI)
+
+Questo progetto include un pulsante nell'interfaccia (icona "refresh" in alto a destra) che permette di forzare un redeploy su Render e tentare di pulire la cache di build. Per usare il pulsante dall'interfaccia web devi configurare alcune variabili d'ambiente sul server:
+
+- `RENDER_API_KEY` → API key personale Render (setta nel dashboard Render / GitHub secrets)
+- `RENDER_SERVICE_ID` → ID del servizio Render (vedi dashboard)
+- `PILLARS_TOKEN` o `RENDER_RESET_TOKEN` (opzionale) → token Bearer richiesto dall'endpoint per sicurezza. Se configurato, il client dovrà inviare `Authorization: Bearer <token>`.
+
+Per permettere al client (web UI) di invocare l'endpoint direttamente, in fase di build imposta la variabile `VITE_PILLARS_TOKEN` con lo stesso valore del token. In questo modo il client invierà automaticamente il Bearer token nell'header delle richieste al backend.
+
+Se preferisci, puoi configurare la variabile `RENDER_USE_CLI=true` e `RENDER_CLI_CMD` con un comando CLI valido (se la macchina ha installato Render CLI). In generale usare l'API REST è più semplice e portabile.
+
+Esempio uso (dalla UI): clicca l'icona refresh → conferma → il server contatterà Render per avviare il deploy. Controlla lo stato nel Render Dashboard (Logs / Deploys).

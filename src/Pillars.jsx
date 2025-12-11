@@ -590,8 +590,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               const manualKey = document.getElementById('manual-key')?.value;
               if (manualKey) {
                 setApiKey(manualKey);
-                // persist session with timestamp
-                setGroqSession({ key: manualKey, ts: Date.now() });
                 setShowKeyModal(false);
                 setKeyStatus('valid');
               } else {
@@ -615,8 +613,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                           alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
                         }
                         setApiKey(manualKey);
-                        // persist session with timestamp
-                        setGroqSession({ key: manualKey, ts: Date.now() });
                         setShowKeyModal(false);
                         setKeyStatus('valid');
                       }}
@@ -2024,57 +2020,9 @@ const Pillars = () => {
   const [data, setData] = useStorage('pillars_db_v10', INITIAL_DATA);
   
   const [apiKey, setApiKey] = useState('');
-  // Persist Groq API key for 24 hours (stored via /api/store)
-  const [groqSession, setGroqSession, groqSessionLoaded] = useStorage('pillars_groq_session', null);
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
-
-  // When the component mounts, check if there's a stored Groq session and if it's still valid (24h)
-  useEffect(() => {
-    if (!groqSessionLoaded) return;
-    try {
-      if (groqSession && groqSession.key && groqSession.ts) {
-        const age = Date.now() - (groqSession.ts || 0);
-        const DAY_MS = 24 * 60 * 60 * 1000;
-        if (age < DAY_MS) {
-          setApiKey(groqSession.key);
-          setShowKeyModal(false);
-        } else {
-          // expired: clear stored session and ask for key again
-          setGroqSession(null);
-          setApiKey('');
-          setShowKeyModal(true);
-        }
-      } else {
-        // no stored key: ask for key
-        setShowKeyModal(true);
-      }
-    } catch (e) {
-      console.warn('Failed to check groqSession', e);
-      setShowKeyModal(true);
-    }
-  }, [groqSessionLoaded]);
-
-  // Periodically check session expiration (e.g., if the app stays open longer than 24h)
-  useEffect(() => {
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const interval = setInterval(() => {
-      try {
-        if (groqSession && groqSession.ts) {
-          const age = Date.now() - groqSession.ts;
-          if (age >= DAY_MS) {
-            setGroqSession(null);
-            setApiKey('');
-            setShowKeyModal(true);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }, 60 * 1000);
-    return () => clearInterval(interval);
-  }, [groqSession]);
   
   // Cloud Sync State
   const [showCloudModal, setShowCloudModal] = useState(false);
@@ -2112,8 +2060,6 @@ const Pillars = () => {
   // VALIDAZIONE API KEY ALL'AVVIO - Mostra il modal ogni volta che l'app viene aperta
   useEffect(() => {
     const checkKey = async () => {
-      // Wait for storage load to complete first
-      if (!groqSessionLoaded) return;
       if (!apiKey) {
         setKeyStatus('idle');
         setShowKeyModal(true);
@@ -2137,7 +2083,7 @@ const Pillars = () => {
     };
 
     checkKey();
-  }, [apiKey, groqSessionLoaded]);
+  }, []);
 
   const [activeTab, setActiveTab] = useState('wealth');
   const [activeRoutineId, setActiveRoutineId] = useState(null);
@@ -2870,14 +2816,13 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
-      {/* Test banner removed in favor of cleaner UI */}
       
       {/* API KEY MODAL */}
       {showKeyModal && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
-                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta per 24 ore).</p>
+                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
                   
                   {keyStatus === 'error' && (
                       <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
@@ -2902,10 +2847,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
                       onKeyDown={(e) => {
                           if(e.key === 'Enter') {
-                              const v = e.target.value;
-                              setApiKey(v);
-                              // persist session with timestamp
-                              setGroqSession({ key: v, ts: Date.now() });
+                              setApiKey(e.target.value);
                               setShowKeyModal(false);
                           }
                       }}
@@ -2924,8 +2866,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                           const manualKey = document.getElementById('manual-key').value;
                           if (manualKey) {
                             setApiKey(manualKey);
-                            // persist session with timestamp
-                            setGroqSession({ key: manualKey, ts: Date.now() });
                             setShowKeyModal(false);
                           }
                         }}

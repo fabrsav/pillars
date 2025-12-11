@@ -167,6 +167,43 @@ app.post('/api/log-error', (req, res) => {
   res.json({ logged: true });
 });
 
+// Basic auth middleware for deployments
+const requireAuthForRender = (req, res, next) => {
+  const token = process.env.PILLARS_TOKEN || process.env.RENDER_RESET_TOKEN || null;
+  if (!token) return next(); // if no token configured, consider public
+  const header = (req.headers.authorization || '');
+  const parts = header.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer' || parts[1] !== token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  return next();
+};
+
+// Trigger a redeploy on Render (hard reset - clear cache + redeploy)
+app.post('/api/render/hard-reset', requireAuthForRender, async (req, res) => {
+  try {
+    const RENDER_API_KEY = process.env.RENDER_API_KEY || null;
+    const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || null;
+    if (!RENDER_API_KEY || !RENDER_SERVICE_ID) return res.status(400).json({ success: false, error: 'missing_config' });
+
+    const url = `https://api.render.com/deploy/${RENDER_SERVICE_ID}`;
+    const body = { commit: req.body?.commit || 'manual-hard-reset', clear_cache: true };
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RENDER_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const text = await response.text();
+    if (!response.ok) return res.status(502).json({ success: false, status: response.status, body: text });
+    let data;
+    try { data = JSON.parse(text); } catch (_) { data = { raw: text }; }
+    return res.json({ success: true, resp: data });
+  } catch (e) {
+    console.error('[Render Hard Reset] Exception', e);
+    return res.status(500).json({ success: false, error: 'internal_error', message: e.message });
+  }
+});
+
 // Replace text endpoint (compatibility)
 app.post('/api/replace-text', async (req, res) => {
   // This would need to be handled by the client
