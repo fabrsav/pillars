@@ -1,84 +1,97 @@
-# Implementation Summary: Encrypted Groq API Key System
+# Implementation Summary: Secure API Key Management
 
-## What Was Implemented
+## Cambiamenti Implementati (Dicembre 2025)
 
-A secure encryption system for the Groq API key that:
+Sistema di gestione sicura delle chiavi API che **NON salva chiavi nel codice sorgente**.
 
-1. **Encrypts the hardcoded key** using AES-256-GCM encryption with PBKDF2 key derivation
-2. **Requires a password to decrypt** the key on server startup
-3. **Works globally** - once decrypted, the key is available to all devices accessing the server
-4. **Never prompts again** during the same session - the decrypted key stays in memory
-5. **Falls back to manual entry** if password is not available
+### Principi di Sicurezza
 
-## Files Created/Modified
+1. ✅ **Nessuna chiave hardcoded** - Le chiavi non sono mai salvate nel codice
+2. ✅ **Gestione in memoria** - Le chiavi esistono solo in RAM durante la sessione
+3. ✅ **Cancellazione automatica** - Le credenziali vengono eliminate alla chiusura
+4. ✅ **Inserimento manuale** - L'utente fornisce le credenziali ogni volta
+5. ✅ **Sessioni temporanee** - Uso di sessionStorage invece di localStorage
 
-### New Files:
-- `groq-key-manager.js` - Core encryption/decryption logic
-- `encrypt-once.js` - Script to encrypt the API key (run once)
-- `setup-encrypted-key.js` - Interactive setup script (alternative method)
-- `ENCRYPTION_SETUP.md` - Complete setup instructions
+## File Modificati
 
-### Modified Files:
-- `server.js` - Added encrypted key endpoints and startup decryption
-- `src/Pillars.jsx` - Updated UI to fetch encrypted key from server and show password prompt
+### File Principali:
+- `src/App.jsx` - Rimosso componente GroqKeySetup (popup password)
+- `groq-key-manager.js` - Rimossi tutti gli hardcoded key e ENCRYPTED_KEY
+- `public/mobile.html` - Implementato sessionStorage per credenziali temporanee
+- `ENCRYPTION_SETUP.md` - Documentazione aggiornata con nuove linee guida
+- `IMPLEMENTATION_SUMMARY.md` - Questo file (aggiornato)
 
-## How It Works
+### Comportamento Attuale
 
-### Encryption (One-time setup):
-1. You set a password in `encrypt-once.js`
-2. Run `node encrypt-once.js`
-3. Copy the encrypted data to `groq-key-manager.js`
+#### Desktop/Web App:
+- Nessun popup all'avvio
+- Le chiavi API possono essere fornite tramite:
+  - Variabile d'ambiente `GROQ_KEY`
+  - API endpoint `/api/groq-key/setup` (se necessario)
+- Le chiavi vengono mantenute in memoria del server durante l'esecuzione
 
-### Decryption (Every server start):
-1. Server checks for `GROQ_KEY_PASSWORD` environment variable
-2. If found, automatically decrypts the key
-3. If not found, UI shows a password prompt
-4. Once decrypted, key is stored in server memory for the session
+#### Mobile App:
+- Richiede inserimento credenziali JSONBin.io ad ogni sessione
+- Usa `sessionStorage` (si cancella automaticamente alla chiusura)
+- Pulsante "Esci" per cancellare manualmente le credenziali
+- Event listener `beforeunload` per pulizia automatica
 
-### API Endpoints:
-- `GET /api/groq-key` - Returns the decrypted key if available
-- `POST /api/groq-key/decrypt` - Decrypts key with provided password
+## Come Fornire le Chiavi API
 
-## Security Features
+### Opzione 1: Variabile d'Ambiente (Sviluppo)
+```bash
+# Linux/Mac
+export GROQ_KEY="gsk_..."
+npm run dev
 
-✅ **AES-256-GCM encryption** - Industry-standard symmetric encryption
-✅ **PBKDF2 key derivation** - 100,000 iterations for brute-force protection
-✅ **Authentication tag** - Prevents tampering with encrypted data
-✅ **Random salt and IV** - Each encryption is unique
-✅ **Memory-only storage** - Decrypted key never written to disk
-✅ **Password not stored** - Only used for decryption, then discarded
+# Windows PowerShell
+$env:GROQ_KEY="gsk_..."
+npm run dev
+```
 
-## Next Steps
+### Opzione 2: Runtime (Mobile)
+1. Apri l'app mobile
+2. Inserisci X-Master-Key e Bin ID
+3. Clicca "Connetti"
+4. Le credenziali sono valide solo per questa sessione
+5. Alla chiusura del browser, tutto viene cancellato
 
-To use this system:
+## Sicurezza Implementata
 
-1. **Set your password** in `encrypt-once.js` (line 15)
-2. **Run encryption**: `node encrypt-once.js`
-3. **Update ENCRYPTED_KEY** in `groq-key-manager.js` with the output
-4. **Set environment variable**: `$env:GROQ_KEY_PASSWORD="your_password"` (or use startup script)
-5. **Start server**: The key will be automatically decrypted
+✅ **Zero chiavi in localStorage** - Previene persistenza non sicura
+✅ **sessionStorage per mobile** - Cancellazione automatica alla chiusura
+✅ **Nessun hardcoded** - Impossibile commit accidentale di chiavi
+✅ **Logout esplicito** - Pulsante per cancellare le credenziali
+✅ **beforeunload handler** - Pulizia garantita alla chiusura della pagina
 
-## Alternative: UI Password Entry
+## File Deprecati
 
-If you don't set the environment variable:
-1. Start the server normally
-2. Open the UI - you'll see a password prompt
-3. Enter your encryption password
-4. Click "Sblocca" (Unlock)
-5. The key will be decrypted and used for the session
+I seguenti componenti sono stati rimossi o deprecati:
 
-## Benefits
+- ❌ `src/GroqKeySetup.jsx` - Non più utilizzato (popup password rimosso)
+- ❌ `encrypt-once.js` - Non più necessario
+- ❌ Sistema password/encryption - Sostituito con gestione runtime
+- ❌ `ENCRYPTED_KEY` in groq-key-manager.js - Rimosso per sicurezza
 
-- **Security**: Key is never stored in plain text
-- **Convenience**: Only need to enter password once per session
-- **Global access**: All devices accessing the server use the same decrypted key
-- **Fallback**: Can still enter key manually if needed
-- **No repeated prompts**: Key stays available until server restart
+## Best Practices
 
-## Important Notes
+### ✅ DA FARE:
+- Usare variabili d'ambiente per sviluppo locale
+- Fornire chiavi API tramite UI quando necessario
+- Cancellare sempre le credenziali dopo l'uso
+- Verificare che sessionStorage sia usato (non localStorage)
 
-⚠️ **Keep your password safe!** If you lose it, you'll need to re-encrypt the key with a new password.
+### ❌ NON FARE:
+- Hardcodare chiavi API nel codice
+- Salvare chiavi in localStorage
+- Committare file .env su Git
+- Condividere chiavi API in chat/email
 
-⚠️ **Don't commit the password** to version control. Use environment variables or local config files.
+## Note Importanti
 
-⚠️ **Original key exposed**: Since the original key was already online, consider regenerating it from Groq's dashboard for maximum security.
+⚠️ **Sessioni Temporanee**: Mobile app richiede credenziali ad ogni apertura. Questo è intenzionale per sicurezza.
+
+⚠️ **Nessun Recupero Password**: Non esiste più un sistema di password/encryption. Le chiavi sono gestite runtime.
+
+⚠️ **Git Security**: Assicurati che `.env` e `db/*.json` siano in `.gitignore`.
+

@@ -1,31 +1,18 @@
 /**
- * Groq API Key Manager - Encrypted Hardcoded Key System
+ * Groq API Key Manager - No Hardcoded Keys
  * 
- * This module handles secure storage and decryption of the Groq API key.
- * The key is encrypted with AES-256-GCM using a password.
+ * This module provides encryption utilities but does NOT store API keys in code.
+ * API keys should be provided at runtime via environment variables or user input.
  * 
- * SETUP:
- * 1. Run: node encrypt-once.js (after setting your password)
- * 2. Copy the output and paste it into ENCRYPTED_KEY below
- * 3. Set GROQ_KEY_PASSWORD environment variable or enter password in UI
+ * SECURITY: Never hardcode API keys in source code.
  */
 
 import crypto from 'crypto';
 
-// Encrypted hardcoded Groq API key (encrypted with AES-256-GCM)
-// To generate this, run: node scripts/encrypt_groq_key.js and copy the JSON here
-// The module supports two formats for backward compatibility:
-// - legacy hex format: { salt, iv, encrypted, authTag }
-// - new base64 format: { salt, iv, data, tag }
-const ENCRYPTED_KEY = {
-  // Example placeholder — replace with actual encrypted JSON
-  // salt: '', iv: '', data: '', tag: ''
-};
-
-// Plaintext (hardcoded) Groq API key as requested.
-// WARNING: Hardcoding API keys in source is insecure. Keep repository private.
-// Clear plaintext key to avoid accidental use. Use UI/server setup to store encrypted key.
+// NO HARDCODED KEYS - Use environment variable GROQ_KEY or provide via UI
 export const PLAINTEXT_GROQ_KEY = '';
+
+const ENCRYPTED_KEY = {};
 
 // Derive encryption key from password using PBKDF2
 function deriveKey(password, salt) {

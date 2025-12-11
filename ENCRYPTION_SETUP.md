@@ -1,103 +1,45 @@
-# Groq API Key Encryption Setup
+# Groq API Key Security - DEPRECATED
 
-This system allows you to store your Groq API key in an encrypted format, requiring a password to decrypt it.
+**IMPORTANTE: Questo sistema di crittografia con password è stato rimosso per motivi di sicurezza.**
 
-## Setup Instructions
+## Configurazione Corrente
 
-### Step 1: Set Your Password
+L'applicazione **NON salva più chiavi API nel codice sorgente** per motivi di sicurezza.
 
-Edit `encrypt-once.js` and change this line:
-```javascript
-const PASSWORD = 'YOUR_SECURE_PASSWORD_HERE'; // Change this to your password
-```
+### Come Fornire la Chiave API
 
-Choose a strong password (at least 8 characters). You will need this password every time the server starts.
+Hai due opzioni:
 
-### Step 2: Generate Encrypted Key
-
-Run the encryption script:
-```bash
-node encrypt-once.js
-```
-
-This will output encrypted key data in JSON format.
-
-### Step 3: Update groq-key-manager.js
-
-Copy the JSON output from Step 2 and paste it into `groq-key-manager.js`, replacing the empty `ENCRYPTED_KEY` object:
-
-```javascript
-const ENCRYPTED_KEY = {
-  salt: "...",     // Paste the values here
-  iv: "...",
-  encrypted: "...",
-  authTag: "..."
-};
-```
-
-### Step 4: Configure Password for Automatic Decryption
-
-You have three options:
-
-#### Option A: Environment Variable (Recommended)
-Set the `GROQ_KEY_PASSWORD` environment variable before starting the server:
+#### Opzione 1: Variabile d'Ambiente (Consigliato per Sviluppo)
+Imposta la variabile d'ambiente `GROQ_KEY` prima di avviare il server:
 
 **Windows (PowerShell):**
 ```powershell
-$env:GROQ_KEY_PASSWORD="your_password_here"
-node server.js
-```
-
-**Windows (Command Prompt):**
-```cmd
-set GROQ_KEY_PASSWORD=your_password_here
+$env:GROQ_KEY="gsk_..."
 node server.js
 ```
 
 **Linux/Mac:**
 ```bash
-export GROQ_KEY_PASSWORD="your_password_here"
+export GROQ_KEY="gsk_..."
 node server.js
 ```
 
-#### Option B: Create a Startup Script
-Create a file `start-with-key.bat` (Windows) or `start-with-key.sh` (Linux/Mac):
+#### Opzione 2: Inserimento Runtime (Consigliato per Produzione)
+L'applicazione chiederà la chiave API ogni volta che viene avviata. La chiave verrà:
+- Mantenuta **solo in memoria** durante la sessione
+- **Cancellata automaticamente** alla chiusura del browser/app
+- **Mai salvata** su disco o in localStorage
 
-**Windows (start-with-key.bat):**
-```batch
-@echo off
-set GROQ_KEY_PASSWORD=your_password_here
-npm run dev
-```
+### Note di Sicurezza
 
-**Linux/Mac (start-with-key.sh):**
-```bash
-#!/bin/bash
-export GROQ_KEY_PASSWORD="your_password_here"
-npm run dev
-```
+- ✅ Le chiavi API sono gestite solo in memoria (RAM)
+- ✅ Nessuna chiave hardcoded nel codice sorgente
+- ✅ Le credenziali vengono cancellate alla chiusura della sessione
+- ✅ Ogni sessione richiede l'inserimento delle credenziali
+- ❌ NON usare localStorage per salvare chiavi API
+- ❌ NON committare file con chiavi API su Git
 
-Make it executable (Linux/Mac):
-```bash
-chmod +x start-with-key.sh
-```
-
-#### Option C: Enter Password in UI
-If no environment variable is set, the UI will show a password prompt where you can enter your password to decrypt the key.
-
-## Usage
-
-1. Start the server (using one of the methods above)
-2. If the password is correct, the key will be automatically decrypted
-3. The decrypted key is stored in memory and used for all AI features
-4. You won't be asked for the key again during this session
-
-## Security Notes
-
-- The encrypted key is stored in `groq-key-manager.js`
-- The password is never stored on disk (only in memory or environment variables)
-- Use AES-256-GCM encryption with PBKDF2 key derivation (100,000 iterations)
-- Keep your password safe - if you lose it, you'll need to re-encrypt the key
 - Don't commit your password to version control
 
 ## Troubleshooting
