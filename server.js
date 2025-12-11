@@ -511,7 +511,71 @@ app.post('/api/open-vscode', (req, res) => {
 
 app.post('/api/log-error', (req, res) => {
   const { error, context } = req.body;
-  fs.writeFileSync(path.join(__dirname, 'error_log.txt'), `[${new Date().toISOString()}] ${context}: ${error}\n`);
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${context}: ${error}\n`;
+  try {
+    fs.writeFileSync(path.join(__dirname, 'error_log.txt'), logLine);
+  } catch (e) {
+    console.error('[log-error] Failed to write local error_log.txt', e);
+  }
+
+  // Asynchronous: commit sanitized error to GitHub if configured
+  (async function commitToGithub() {
+    try {
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
+      const GITHUB_REPO = process.env.GITHUB_REPO || null; // format: owner/repo
+      const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+
+      if (!GITHUB_TOKEN || !GITHUB_REPO) {
+        return;
+      }
+
+      // Sanitize error content to avoid leaking secrets
+      const rawContent = JSON.stringify({ timestamp, context, error }, null, 2);
+      const envSecrets = ['GROQ_KEY', 'GROQ_SECRET', 'PILLARS_TOKEN', 'VITE_PILLARS_TOKEN', 'GITHUB_TOKEN'];
+      let sanitized = rawContent;
+      envSecrets.forEach((k) => {
+        if (process.env[k]) {
+          sanitized = sanitized.split(process.env[k]).join('<REDACTED>');
+        }
+      });
+
+      // Basic pattern redaction for keys like sk_..., gsk_... or long hex strings
+      sanitized = sanitized.replace(/(Bearer\s+)?(?:sk_|gsk_)[A-Za-z0-9_\-]{8,}/g, '<REDACTED_KEY>');
+      sanitized = sanitized.replace(/\b[0-9a-f]{32,}\b/gi, '<REDACTED_HEX>');
+
+      const now = new Date();
+      const filePath = `error-logs/error-${now.toISOString().replace(/[:.]/g, '-')}.json`;
+
+      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${encodeURIComponent(filePath)}`;
+      const message = `Automated error log: ${context} @ ${timestamp}`;
+      const body = {
+        message,
+        content: Buffer.from(sanitized, 'utf8').toString('base64'),
+        branch: GITHUB_BRANCH
+      };
+
+      const resp = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'pillars-error-logger'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '<no body>');
+        console.warn('[log-error] GitHub commit failed', resp.status, txt);
+      } else {
+        console.log('[log-error] Committed error log to GitHub:', filePath);
+      }
+    } catch (e) {
+      console.error('[log-error] Exception while committing to GitHub:', e);
+    }
+  })();
+
   res.json({ success: true });
 });
 
