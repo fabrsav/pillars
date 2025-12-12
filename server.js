@@ -464,6 +464,27 @@ app.post('/api/store/:key', requireAuth, (req, res) => {
       fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
     }
 
+    // If configured, also persist to GitHub for more robust storage (async)
+    try {
+      const GITHUB_STORE_PREFIX = process.env.GITHUB_STORE_PREFIX || 'db';
+      if (process.env.GITHUB_TOKEN && process.env.GITHUB_REPO) {
+        (async () => {
+          try {
+            const repoPath = `${GITHUB_STORE_PREFIX}/${key}.json`;
+            const content = JSON.stringify(req.body, null, 2);
+            const commitMessage = `Automated save: ${key} @ ${new Date().toISOString()}`;
+            const res = await commitFileToGithub(repoPath, content, commitMessage);
+            console.log('[store] Committed to GitHub:', repoPath, res?.content?.html_url || '');
+          } catch (e) {
+            console.warn('[store] Failed to commit to GitHub:', e.message || e);
+          }
+        })();
+      }
+    } catch (e) {
+      // non-fatal, keep primary disk save behavior
+      console.warn('[store] GitHub persistence check failed', e.message || e);
+    }
+
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).send('Error writing data');
