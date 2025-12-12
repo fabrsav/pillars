@@ -64,7 +64,8 @@ function runSync() {
     }
     ensureGitIdentity();
     const filesCount = sh('git', ['status', '--porcelain']).out.split('\n').filter(Boolean).length;
-    sh('git', ['add', '-A']);
+    // Stage all except noisy/derived folders
+    sh('git', ['add', '-A', '--', ':!dist', ':!node_modules', ':!.vscode', ':!tmp']);
     const msg = `${MESSAGE_PREFIX} ${new Date().toISOString()} (${filesCount} files)`;
     const commit = sh('git', ['commit', '-m', msg]);
     if (commit.code !== 0) {
