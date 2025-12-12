@@ -63,158 +63,128 @@ const useStorage = (key, initialValue) => {
         return res.json();
       })
       .then(data => {
-        console.log(`[useStorage] ${key} data received:`, data);
-        if (data !== null) setValue(data);
-        setLoaded(true);
-      })
-      .catch(err => {
-        console.error(`[useStorage] ${key} ERROR:`, err);
-        setLoaded(true);
-      });
-  }, [key]);
-
-  useEffect(() => {
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const manualKey = document.getElementById('manual-key')?.value;
-                if (manualKey) {
-                  setApiKey(manualKey);
-                  setShowKeyModal(false);
-                  setKeyStatus('valid');
-                } else {
-                  setKeyStatus('error');
-                  setShowKeyModal(true);
-                }
-              }}
-              className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
-            >
-              Sblocca
-            </button>
-          </div>
+        return (
+    <div className={`mt-6 rounded-2xl border ${theme.border} p-6 bg-slate-900/40 relative overflow-hidden transition-all duration-500 ease-in-out`}>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <h4 className={`text-xs font-bold ${theme.text} flex items-center gap-2 tracking-widest`}>
+            <Receipt size={14}/> Gestione rimborsi
+          </h4>
+          <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
+            Aggiorna stati (AI)
+          </button>
+          <button
+            onClick={() => {
+              const manualKey = document.getElementById('manual-key')?.value;
+              if (manualKey) {
+                setApiKey(manualKey);
+                setShowKeyModal(false);
+                setKeyStatus('valid');
+              } else {
+                setKeyStatus('error');
+                setShowKeyModal(true);
+              }
+            }}
+            className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
+          >
+            Sblocca
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
         </div>
       </div>
-    const isReasoningModel = model !== MODEL_FAST;
-    
-    const requestBody = {
-      "model": model,
-      "messages": [{ "role": "user", "content": prompt }],
-      "temperature": 0.6,  // Ottimale per reasoning (0.5-0.7)
-      "max_completion_tokens": maxTokens,
-      "top_p": 0.95
-    };
-    
-    // Aggiungi reasoning effort solo per modelli GPT-OSS
-    if (isReasoningModel) {
-      requestBody.reasoning_effort = reasoningEffort; // 'low', 'medium', 'high'
-      requestBody.include_reasoning = false; // Non includere il reasoning nella risposta (solo il risultato)
-    }
-    
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new Error("INVALID_KEY");
-      if (response.status === 429) throw new Error("RATE_LIMIT");
-      const errorText = await response.text();
-      console.error('[Groq API Error]', response.status, errorText);
-      throw new Error(`API Error: ${response.status}`);
-    }
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || null;
+      {/* LISTA RIMBORSI */}
+      {mode === 'list' && (
+        <>
+          {(refunds || []).length === 0 ? (
+            <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
+          ) : (
+            <div className="space-y-3">
+              {(refunds || []).map((r) => {
+                const daysLeft = getDaysLeft(r.arrivalDate);
+                const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
+                
+                return (
+                  <div key={r.id} className={`p-4 rounded-xl border ${urgency} transition-all hover:border-slate-600`}>
+                    {/* Header con negozio, oggetto, importo */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
+                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
+                      </div>
+                      <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+                    </div>
 
-  } catch (error) {
-    logError(error, `Groq API (${model})`);
-    throw error;
-  }
-};
+                    {/* Tracking e codici ritiro */}
+                    {(r.trackingCode || r.pickupCode) && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {r.trackingCode && (
+                          <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                            📦 {r.trackingCode}
+                          </span>
+                        )}
+                        {r.pickupCode && (
+                          <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                            🔑 Ritiro: {r.pickupCode}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
+                    {/* Note */}
+                    {r.notes && (
+                      <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
+                        {r.notes}
+                      </div>
+                    )}
 
+                    {/* Ultimo aggiornamento */}
+                    {r.history?.[0] && (
+                      <div className="text-[9px] text-slate-400 mb-2">
+                        Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}
+                      </div>
+                    )}
 
-// --- COMPONENTE EDITABLE TEXT (MAGIC PENCIL) ---
-const EditableText = ({ id, defaultText, className, type = 'text' }) => {
-  const [overrides, setOverrides] = useStorage('pillars_text_overrides', {});
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempValue, setTempValue] = useState('');
-  
-  // Global edit mode state (shared via event or context, but for simplicity we use a local toggle here triggered by a global class or prop if needed)
-  // Actually, we will use a specific "Text Edit Mode" button in the UI to toggle a class on the body, or just let the user click to edit if enabled.
-  // Let's use a simple "Click to Edit" if a global "Text Edit Mode" is active.
-  // Since we don't have a global context provider easily here without refactoring, we'll check a window property or similar, OR just add a small UI indicator.
-  
-  // BETTER APPROACH: The user asked for a "vacant pencil". We'll use a state in the main component passed down, OR we can just make these always editable via double click if we want, but the user asked for a specific tool.
-  // Let's assume `window.TEXT_EDIT_MODE` is toggled by the pencil.
-  
-  const [editModeEnabled, setEditModeEnabled] = useState(false);
+                    {/* Login Section */}
+                    <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                        <Mail size={10}/> {r.email || '-'}
+                        {r.password && (
+                          <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
+                            <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}>
+                        <LogIn size={10}/> Login
+                      </button>
+                    </div>
 
-  useEffect(() => {
-    const checkMode = () => setEditModeEnabled(window.TEXT_EDIT_MODE === true);
-    window.addEventListener('pillars-text-edit-toggle', checkMode);
-    return () => window.removeEventListener('pillars-text-edit-toggle', checkMode);
-  }, []);
+                    {/* Footer con date e azioni */}
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
+                      <div className="text-[9px] text-slate-500 flex gap-2">
+                        {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
+                        {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                          {r.status}
+                        </button>
+                        <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+                        <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
-  const text = overrides[id] || defaultText;
-
-  const handleSave = () => {
-    setOverrides(prev => ({ ...prev, [id]: tempValue }));
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-1 animate-in fade-in duration-200">
-        {type === 'textarea' ? (
-             <textarea 
-                value={tempValue} 
-                onChange={e => setTempValue(e.target.value)} 
-                className="bg-slate-950 border border-blue-500 text-white text-xs p-2 rounded w-full"
-                autoFocus
-             />
-        ) : (
-            <input 
-                value={tempValue} 
-                onChange={e => setTempValue(e.target.value)} 
-                className="bg-slate-950 border border-blue-500 text-white text-xs p-1 rounded w-full"
-                autoFocus
-            />
-        )}
-        <button onClick={handleSave} className="text-green-400 hover:text-green-300"><CheckCircle2 size={14}/></button>
-        <button onClick={() => setIsEditing(false)} className="text-red-400 hover:text-red-300"><X size={14}/></button>
-      </div>
-    );
-  }
-
-  return (
-    <span 
-      data-edit-id={id}
-      className={`${className} ${editModeEnabled ? 'cursor-pointer hover:bg-blue-500/20 hover:outline hover:outline-1 hover:outline-blue-500 rounded px-1 transition-all' : ''}`}
-      onClick={() => {
-        if (editModeEnabled) {
-          setTempValue(text);
-          setIsEditing(true);
-        }
-      }}
-      title={editModeEnabled ? "Clicca per modificare testo" : ""}
-    >
-      {text}
-    </span>
-  );
-};
-
-// --- TEMI E CLASSI ---
-const THEMES = {
-  wealth: { 
-    id: 'wealth', label: 'SOLDI', 
+      {/* FORM MANUALE */}
     bg: 'from-emerald-950 to-slate-950', accent: 'emerald', 
     text: 'text-emerald-400', border: 'border-emerald-500/20', 
     gradient: 'from-emerald-500 to-cyan-600', status: 'FOCUS: CRESCITA' 
