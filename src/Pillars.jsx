@@ -593,13 +593,13 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
-<<<<<<< HEAD
+ 
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
         </div>
       </div>
-=======
+ 
           <button
             onClick={() => {
               const manualKey = document.getElementById('manual-key')?.value;
@@ -642,7 +642,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
                     >Imposta passphrase (sessione)</button>
                   </div>
->>>>>>> d59ba9d (Fix: prevent crash in RefundManager by safely mapping refunds; export component for tests; add test scaffold and vitest)
+ 
 
       {/* LISTA RIMBORSI */}
       {mode === 'list' && (
