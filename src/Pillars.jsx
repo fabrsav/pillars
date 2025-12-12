@@ -585,6 +585,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
+<<<<<<< HEAD
           <button
             onClick={() => {
               const manualKey = document.getElementById('manual-key')?.value;
@@ -621,65 +622,108 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
                     >Imposta passphrase (sessione)</button>
                   </div>
+=======
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
+        </div>
+      </div>
+>>>>>>> origin/merge/wip-squash-from-main
 
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {r.trackingCode && (
-                      <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
-                        📦 {r.trackingCode}
-                      </span>
+      {/* LISTA RIMBORSI */}
+      {mode === 'list' && (
+        <>
+          {(refunds || []).length === 0 ? (
+            <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
+          ) : (
+            <div className="space-y-3">
+              {(refunds || []).map((r) => {
+                const daysLeft = getDaysLeft(r.arrivalDate);
+                const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
+                
+                return (
+                  <div key={r.id} className={`p-4 rounded-xl border ${urgency} transition-all hover:border-slate-600`}>
+                    {/* Header con negozio, oggetto, importo */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
+                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
+                      </div>
+                      <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+                    </div>
+
+                    {/* Tracking e codici ritiro */}
+                    {(r.trackingCode || r.pickupCode) && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {r.trackingCode && (
+                          <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                            📦 {r.trackingCode}
+                          </span>
+                        )}
+                        {r.pickupCode && (
+                          <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                            🔑 Ritiro: {r.pickupCode}
+                          </span>
+                        )}
+                      </div>
                     )}
-                    {r.pickupCode && (
-                      <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
-                        🔑 Ritiro: {r.pickupCode}
-                      </span>
+
+                    {/* Note */}
+                    {r.notes && (
+                      <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
+                        {r.notes}
+                      </div>
                     )}
-                  </div>
-                </>
-              )}
 
-              {/* Note */}
-              {r.notes && (
-                <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
-                  {r.notes}
-                </div>
-              )}
+                    {/* Ultimo aggiornamento */}
+                    {r.history?.[0] && (
+                      <div className="text-[9px] text-slate-400 mb-2">
+                        Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}
+                      </div>
+                    )}
 
-              {r.history?.[0] && (
-                <div className="text-[9px] text-slate-400 mb-2">Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}</div>
-              )}
-
-              {/* Login Section */}
-              <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                      <Mail size={10}/> {r.email || '-'}
-                      {r.password && (
-                        <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
+                    {/* Login Section */}
+                    <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                        <Mail size={10}/> {r.email || '-'}
+                        {r.password && (
+                          <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
                             <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
-                        </div>
-                      )}
-                  </div>
-                  <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}>
-                    <LogIn size={10}/> Login
-                  </button>
-              </div>
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}>
+                        <LogIn size={10}/> Login
+                      </button>
+                    </div>
 
-              <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
-                <div className="text-[9px] text-slate-500 flex gap-2">
-                  {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
-                  {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                    {r.status}
-                    </button>
-                    <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
-                    <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
-                </div>
-              </div>
+                    {/* Footer con date e azioni */}
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
+                      <div className="text-[9px] text-slate-500 flex gap-2">
+                        {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
+                        {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                          {r.status}
+                        </button>
+                        <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+                        <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+<<<<<<< HEAD
         )) : (
           <div className="text-slate-500">Nessun rimborso</div>
         )}
+=======
+          )}
+        </>
+      )}
+>>>>>>> origin/merge/wip-squash-from-main
 
         {/* FORM MANUALE */}
         {mode === 'manual' && (
@@ -771,7 +815,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             </button>
           </div>
         )}
-      </div>
 
       {mode === 'list' && (
         <div className="grid grid-cols-2 gap-2 mt-4">
