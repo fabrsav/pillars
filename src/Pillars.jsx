@@ -576,9 +576,9 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
   const totalPotential = refunds.filter(r => r.status === 'Da Fare' || r.status === 'Richiesto').reduce((acc, r) => acc + parseFloat(r.amount||0), 0);
 
   return (
-    <div className={`mt-6 rounded-2xl border ${theme.border} p-6 bg-slate-900/40 relative overflow-hidden transition-all duration-500 ease-in-out`}>
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
+    <div className={`mt-6 rounded-2xl border ${theme.border} p-4 sm:p-6 bg-slate-900/40 relative overflow-hidden transition-all duration-500 ease-in-out`}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <h4 className={`text-xs font-bold ${theme.text} flex items-center gap-2 tracking-widest`}>
             <Receipt size={14}/> Gestione rimborsi
           </h4>
@@ -2865,8 +2865,8 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
       
       {/* API KEY MODAL */}
       {showKeyModal && (
-          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-              <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+              <div className="bg-slate-900 border border-slate-700 p-4 sm:p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
                   <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
                   
@@ -2926,8 +2926,8 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
       {/* CLOUD SYNC MODAL */}
       {showCloudModal && (
-          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-              <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+              <div className="bg-slate-900 border border-slate-700 p-4 sm:p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                       <Cloud size={20} className="text-emerald-400"/> Cloud Sync
@@ -3020,15 +3020,15 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
         <div className="absolute inset-0 opacity-10 mix-blend-overlay" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}></div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 relative z-10">
         
         {/* --- SIDEBAR --- */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl transition-all duration-300 ease-out hover:border-white/10">
+          <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl transition-all duration-300 ease-out hover:border-white/10">
             {/* HEADER */}
-            <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-white uppercase transition-all duration-300">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white uppercase transition-all duration-300">
                     <EditableText id="main_title" defaultText="PILLARS" />
                 </h1>
                 <div className={`text-[10px] uppercase tracking-[0.2em] font-bold ${currentTheme.text} opacity-80 mt-1 animate-pulse`}>
@@ -3062,14 +3062,14 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
             </div>
 
             {/* TABS CON ANIMAZIONE FLUIDA */}
-            <div className="grid grid-cols-4 gap-2 mb-8">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-6 sm:mb-8">
               {Object.values(THEMES).map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)} className="flex flex-col items-center gap-2 group">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ease-out ${activeTab === t.id ? `bg-slate-800 border-${t.accent}-500 text-white scale-110 shadow-lg shadow-${t.accent}-500/20` : 'bg-transparent border-transparent text-slate-600 hover:bg-slate-800/50 hover:scale-105'}`}>
-                      {t.id === 'wealth' && <TrendingUp size={20}/>}
-                      {t.id === 'health' && <Dumbbell size={20}/>}
-                      {t.id === 'brain' && <Brain size={20}/>}
-                      {t.id === 'heart' && <Heart size={20}/>}
+                <button key={t.id} onClick={() => setActiveTab(t.id)} className="flex flex-col items-center gap-1.5 sm:gap-2 group">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 ease-out ${activeTab === t.id ? `bg-slate-800 border-${t.accent}-500 text-white scale-110 shadow-lg shadow-${t.accent}-500/20` : 'bg-transparent border-transparent text-slate-600 hover:bg-slate-800/50 hover:scale-105'}`}>
+                      {t.id === 'wealth' && <><TrendingUp size={18} className="sm:hidden"/><TrendingUp size={20} className="hidden sm:block"/></>}
+                      {t.id === 'health' && <><Dumbbell size={18} className="sm:hidden"/><Dumbbell size={20} className="hidden sm:block"/></>}
+                      {t.id === 'brain' && <><Brain size={18} className="sm:hidden"/><Brain size={20} className="hidden sm:block"/></>}
+                      {t.id === 'heart' && <><Heart size={18} className="sm:hidden"/><Heart size={20} className="hidden sm:block"/></>}
                   </div>
                   <span className={`text-[9px] uppercase font-bold tracking-wider transition-colors duration-300 ${activeTab === t.id ? 'text-white' : 'text-slate-600 group-hover:text-slate-400'}`}>
                       <EditableText id={`tab_label_${t.id}`} defaultText={t.label} />
@@ -3087,7 +3087,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                 </button>
               </div>
 
-              <div className="max-h-[400px] overflow-y-auto overflow-x-visible pr-4 scrollbar-thin scrollbar-thumb-slate-800/50 space-y-1">
+              <div className="max-h-[300px] sm:max-h-[400px] overflow-y-auto overflow-x-visible pr-2 sm:pr-4 scrollbar-thin scrollbar-thumb-slate-800/50 space-y-1">
                 {data[activeTab]?.map((r, index) => (
                   <div 
                     key={r.id} 
@@ -3137,21 +3137,21 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
         {/* --- MAIN DASHBOARD --- */}
         <div className="lg:col-span-8">
           {activeRoutine ? (
-            <div className={`h-full bg-slate-900/60 backdrop-blur-xl border ${currentTheme.border} rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-500 animate-in fade-in zoom-in-[0.99] duration-300`}>
+            <div className={`h-full bg-slate-900/60 backdrop-blur-xl border ${currentTheme.border} rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-500 animate-in fade-in zoom-in-[0.99] duration-300`}>
               
               {/* HEADER ROUTINE */}
-              <div className="flex justify-between items-start mb-8 relative z-10">
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-6 sm:mb-8 relative z-10 gap-4">
                 <div>
                   <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-${currentTheme.accent}-500/10 text-${currentTheme.accent}-400 border border-${currentTheme.accent}-500/20 uppercase mb-3 transition-all hover:bg-${currentTheme.accent}-500/20`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
                     ATTIVO
                   </div>
-                  <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">{activeRoutine.title}</h2>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 tracking-tight">{activeRoutine.title}</h2>
                   <p className="text-slate-400 text-sm">{activeRoutine.desc}</p>
                 </div>
                 {activeRoutine.tasks?.length > 0 && (
-                  <div className="text-right">
-                    <div className="text-5xl font-mono font-bold text-white tracking-tighter transition-all">{progress}%</div>
+                  <div className="text-right sm:text-right w-full sm:w-auto">
+                    <div className="text-4xl sm:text-5xl font-mono font-bold text-white tracking-tighter transition-all">{progress}%</div>
                     <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">COMPLETATO</div>
                   </div>
                 )}
@@ -3159,7 +3159,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
               {/* BARRA PROGRESSO FLUIDA - solo se ci sono task */}
               {activeRoutine.tasks?.length > 0 && (
-                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden mb-8 border border-slate-800/50">
+                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden mb-6 sm:mb-8 border border-slate-800/50">
                   <div 
                     className={`h-full bg-gradient-to-r ${currentTheme.gradient} transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.3)]`} 
                     style={{width: `${progress}%`}}
@@ -3169,7 +3169,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
               {/* TOOLBAR */}
               {isEditMode && (
-                <div className="flex gap-2 mb-4 animate-in slide-in-from-top-2">
+                <div className="flex flex-wrap gap-2 mb-4 animate-in slide-in-from-top-2">
                    <button 
                     disabled={aiLoading}
                     onClick={() => addAiSuggestion(activeRoutine.id, activeRoutine.title)} 
@@ -3346,8 +3346,8 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
       {/* NEXUS OVERLAY - Real AI Analysis */}
       {nexusOpen && (
-         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-slate-900 border border-cyan-500/30 w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300">
+           <div className="bg-slate-900 border border-cyan-500/30 w-full max-w-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-2xl relative overflow-hidden">
              <button onClick={() => { setNexusOpen(false); setNexusAnalysis(null); }} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X/></button>
              
              <h3 className="text-cyan-400 font-mono text-sm uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -3521,16 +3521,19 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
       {/* === QUICK ADD FLOATING BUTTON === */}
       <button
         onClick={() => { setQuickAddOpen(true); setQuickAddResult(null); }}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-full shadow-2xl flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-full shadow-2xl flex items-center justify-center text-white transition-all duration-300 hover:scale-110 active:scale-95"
         title="Quick Add - Aggiungi task velocemente"
       >
-        <Plus size={28} />
+        <>
+          <Plus size={24} className="sm:hidden" />
+          <Plus size={28} className="hidden sm:block" />
+        </>
       </button>
 
       {/* === QUICK ADD MODAL === */}
       {quickAddOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-lg rounded-2xl p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => { setQuickAddOpen(false); setQuickAddResult(null); setQuickAddProposal(null); setQuickAddText(''); }} 
               className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"

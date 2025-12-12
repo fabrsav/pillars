@@ -6,6 +6,7 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 #root {
@@ -13,7 +14,9 @@ html, body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow: auto; /* allow page scrolling on mobile */
+  max-width: 100vw; /* Prevent overflow */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  overflow-y: auto; /* allow page scrolling on mobile */
 }
 
 body {
@@ -24,6 +27,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #0f172a; /* slate-900 */
   color: white;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  /* Ensure better touch targets on mobile */
+  button, a, input, select, textarea {
+    min-height: 44px; /* iOS recommended minimum touch target */
+  }
+  
+  /* Prevent text from being too small */
+  * {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 }
 
 /* Hide scrollbar globally but allow scroll where needed */
