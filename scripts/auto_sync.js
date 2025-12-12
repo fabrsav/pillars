@@ -13,6 +13,9 @@ import process from 'node:process';
 const ROOT = process.cwd();
 const DEBOUNCE_MS = Number(process.env.AUTOSYNC_DEBOUNCE_MS || 5000);
 const MESSAGE_PREFIX = process.env.AUTOSYNC_PREFIX || 'autopush:';
+// Target branch to push changes to. Defaults to 'HEAD' to preserve existing behavior.
+// Set `AUTOSYNC_TARGET_BRANCH=main` to push commits directly to `main`.
+const TARGET_BRANCH = process.env.AUTOSYNC_TARGET_BRANCH || 'HEAD';
 
 function sh(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'pipe', encoding: 'utf-8', ...opts });
@@ -73,12 +76,12 @@ function runSync() {
       return;
     }
     const branch = currentBranch();
-    // Push and set upstream if needed
-    const push = sh('git', ['push', '-u', 'origin', 'HEAD']);
+    // Push and set upstream to the configured target branch (defaults to HEAD)
+    const push = sh('git', ['push', '-u', 'origin', TARGET_BRANCH]);
     if (push.code !== 0) {
       log('push failed:', push.err || push.out || push.code);
     } else {
-      log(`pushed ${branch}`);
+      log(`pushed ${branch} -> ${TARGET_BRANCH}`);
     }
   } finally {
     syncing = false;
