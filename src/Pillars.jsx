@@ -4,28 +4,54 @@
  * ==========================================================================================
  * * PROGETTO: LifeOS / Pillars (React Single File Component)
  * OBIETTIVO: Dashboard personale olistica (Wealth, Health, Brain, Heart).
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
-            <button
-              onClick={() => {
-                const manualKey = document.getElementById('manual-key')?.value;
-                if (manualKey) {
-                  setApiKey(manualKey);
-                  // persist session with timestamp
-                  setGroqSession({ key: manualKey, ts: Date.now() });
-                  setKeyStatus('valid');
-                } else {
-                  setKeyStatus('error');
-                  setShowKeyModal(true);
-                }
-              }}
-              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
-            >
-              Sblocca
-            </button>
-          </div>
-        </div>
+ * * * ARCHITETTURA:
+ * - Framework: React (con Hooks: useState, useEffect, useRef).
+ * - Styling: Tailwind CSS (uso intensivo di gradienti, backdrop-blur, animate-in).
+ * - Icone: Lucide-react.
+ * - API AI: Groq (Llama 3.3 70B).
+ * - Persistenza: Backend Locale (Node.js + JSON Files).
+ * * * MODULI CRITICI (NON RIMUOVERE O SEMPLIFICARE ECCESSIVAMENTE):
+ * 1. REFUND MANAGER (Gestione rimborsi):
+ * - Rinomina visiva: "Gestione rimborsi" (NO "Tracking Acquisti").
+ * - Input "Smart" per parsing testo naturale -> JSON.
+ * - "Smart Login": copia password clipboard + apre link provider.
+ * * 2. ILARIA OS (Relationship Manager - FULL CONTEXT VERSION):
+ * - ⚠️ CRITICO: L'utente richiede l'analisi dell'INTERO file chat (anche 2M+ token).
+ * - NON REINTRODURRE CAMPIONAMENTO O TAGLI (Sampling/Slicing).
+ * - Il prompt deve istruire l'LLM a gestire l'intera timeline.
+ * - PERSISTENZA: Il localStorage ha un limite di ~5MB. Se il file .txt supera il limite:
+ * a) Salvare assolutamente l'ANALISI (JSON) che è piccola.
+ * b) Tentare di salvare il TXT, ma gestire l'errore (QuotaExceeded) senza crashare.
+ * * 3. LAYOUT & UX:
+ * - Sidebar fissa + Dashboard fluida.
+ * - Animazioni obbligatorie: `transition-all duration-300 ease-out`.
+ * * 4. API & SICUREZZA:
+ * - `apiKey` fornita dall'utente/ambiente.
+ * ==========================================================================================
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
+import FabricConfigurator from './FabricConfigurator';
+import DailyItems from './DailyItems';
+import DeadlineCountdown from './DeadlineCountdown';
+import { 
+  CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
+  DollarSign, TrendingUp, Code, Landmark, Calculator, Dumbbell, Heart, 
+  Utensils, BedDouble, Activity, Brain, BookOpen, Lightbulb, Puzzle, 
+  Briefcase, GraduationCap, Gift, MessageCircle, CalendarHeart, Users, 
+  Edit3, Gem, Droplet, Flame, CheckSquare, Library, Plane, Coins, 
+  ArrowRight, Dna, Timer, Cpu, History, AlertTriangle, Crosshair, 
+  Scissors, Smile, Wind, Plus, Trash2, X, GripVertical, ArrowDownUp,
+  Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock,
+  School, Calendar, BookMarked, ShoppingBag, Mail, AlertCircle, Receipt,
+  Package, CalendarClock, PhoneCall, Key, LogIn, Eye, EyeOff, FileHeart,
+  Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
+} from 'lucide-react';
+
+// --- HOOK PERSISTENZA LOCALE (BACKEND) ---
+const useStorage = (key, initialValue) => {
+  const [value, setValue] = useState(initialValue);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     console.log(`[useStorage] Fetching ${key}...`);
@@ -127,40 +153,6 @@ const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, r
     throw error;
   }
 };
-
-// --- ERROR BOUNDARY ---
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, info) {
-    // Log the error to the server for later inspection
-    logError(error, 'ErrorBoundary');
-    console.error('ErrorBoundary caught error:', error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-6 rounded-lg bg-red-900/80 text-white">
-          <div className="font-bold mb-2">Errore nella sezione — riprova più tardi</div>
-          <div className="text-sm opacity-80 mb-4">{this.state.error?.message || 'Errore sconosciuto'}</div>
-          <div className="flex gap-2">
-            <button onClick={() => window.location.reload()} className="py-2 px-3 bg-white/10 rounded">Ricarica</button>
-            <button onClick={() => { alert('Errore segnalato'); logError(this.state.error, 'UserReported'); }} className="py-2 px-3 bg-white/10 rounded">Segnala</button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 
 
@@ -593,20 +585,11 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
- 
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
-        </div>
-      </div>
- 
           <button
             onClick={() => {
               const manualKey = document.getElementById('manual-key')?.value;
               if (manualKey) {
                 setApiKey(manualKey);
-                // persist session with timestamp
-                setGroqSession({ key: manualKey, ts: Date.now() });
                 setShowKeyModal(false);
                 setKeyStatus('valid');
               } else {
@@ -618,10 +601,8 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           >
             Sblocca
           </button>
-
-        {/* Lista rimborsi: mappa sicura dei rimborsi (evita riferimenti a `r` non definiti) */}
-        {(refunds || []).map((r, idx) => (
-          <div key={r?.id ?? idx}>
+              {refunds && refunds.length > 0 ? refunds.map((r) => (
+                <div key={r.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
               {(r.trackingCode || r.pickupCode) && (
                 <>
                   <div className="mt-3">
@@ -634,113 +615,61 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                           alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
                         }
                         setApiKey(manualKey);
-                        // persist session with timestamp
-                        setGroqSession({ key: manualKey, ts: Date.now() });
                         setShowKeyModal(false);
                         setKeyStatus('valid');
                       }}
                       className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
                     >Imposta passphrase (sessione)</button>
                   </div>
- 
 
-      {/* LISTA RIMBORSI */}
-      {mode === 'list' && (
-        <>
-          {(refunds || []).length === 0 ? (
-            <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
-          ) : (
-            <div className="space-y-3">
-              {(refunds || []).map((r) => {
-                const daysLeft = getDaysLeft(r.arrivalDate);
-                const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
-                
-                return (
-                  <div key={r.id} className={`p-4 rounded-xl border ${urgency} transition-all hover:border-slate-600`}>
-                    {/* Header con negozio, oggetto, importo */}
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
-                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
-                      </div>
-                      <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
-                    </div>
-
-                    {/* Tracking e codici ritiro */}
-                    {(r.trackingCode || r.pickupCode) && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {r.trackingCode && (
-                          <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
-                            📦 {r.trackingCode}
-                          </span>
-                        )}
-                        {r.pickupCode && (
-                          <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
-                            🔑 Ritiro: {r.pickupCode}
-                          </span>
-                        )}
-                      </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {r.trackingCode && (
+                      <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                        📦 {r.trackingCode}
+                      </span>
                     )}
-
-                    {/* Note */}
-                    {r.notes && (
-                      <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
-                        {r.notes}
-                      </div>
+                    {r.pickupCode && (
+                      <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                        🔑 Ritiro: {r.pickupCode}
+                      </span>
                     )}
-
-                    {/* Ultimo aggiornamento */}
-                    {r.history?.[0] && (
-                      <div className="text-[9px] text-slate-400 mb-2">
-                        Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}
-                      </div>
-                    )}
-
-                    {/* Login Section */}
-                    <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                        <Mail size={10}/> {r.email || '-'}
-                        {r.password && (
-                          <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
-                            <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
-                          </div>
-                        )}
-                      </div>
-                      <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}>
-                        <LogIn size={10}/> Login
-                      </button>
-                    </div>
-
-<<<<<<< HEAD
-                    {/* Footer con date e azioni */}
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
-                      <div className="text-[9px] text-slate-500 flex gap-2">
-                        {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
-                        {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                          {r.status}
-                        </button>
-                        <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
-                        <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
-                      </div>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-=======
+                </>
+              )}
+
+              {/* Note */}
+              {r.notes && (
+                <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
+                  {r.notes}
+                </div>
+              )}
+
+              {r.history?.[0] && (
+                <div className="text-[9px] text-slate-400 mb-2">Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}</div>
+              )}
+
+              {/* Login Section */}
+              <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <Mail size={10}/> {r.email || '-'}
+                      {r.password && (
+                        <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
+                            <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
+                        </div>
+                      )}
+                  </div>
+                  <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}>
+                    <LogIn size={10}/> Login
+                  </button>
+              </div>
+
               <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
                 <div className="text-[9px] text-slate-500 flex gap-2">
                   {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
                   {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => updateStatus(r.id, r.status)} className={'text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ' + (r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500-20 text-emerald-400 border-emerald-500-30')}>
+                    <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
                     {r.status}
                     </button>
                     <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
@@ -748,9 +677,9 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                 </div>
               </div>
             </div>
-          </div>
-        ))}
->>>>>>> d59ba9d (Fix: prevent crash in RefundManager by safely mapping refunds; export component for tests; add test scaffold and vitest)
+        )) : (
+          <div className="text-slate-500">Nessun rimborso</div>
+        )}
 
         {/* FORM MANUALE */}
         {mode === 'manual' && (
@@ -842,6 +771,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             </button>
           </div>
         )}
+      </div>
 
       {mode === 'list' && (
         <div className="grid grid-cols-2 gap-2 mt-4">
@@ -856,8 +786,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     </div>
   );
 };
-
-export { RefundManager };
 
 // --- WIDGET 2: REACTION TESTER ---
 const ReactionTester = ({ theme }) => {
@@ -2095,63 +2023,12 @@ const Pillars = () => {
   const [data, setData] = useStorage('pillars_db_v10', INITIAL_DATA);
   
   const [apiKey, setApiKey] = useState('');
-  // Persist Groq API key for 24 hours (stored via /api/store)
-  const [groqSession, setGroqSession, groqSessionLoaded] = useStorage('pillars_groq_session', null);
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
-
-  // When the component mounts, check if there's a stored Groq session and if it's still valid (24h)
-  useEffect(() => {
-    if (!groqSessionLoaded) return;
-    try {
-      if (groqSession && groqSession.key && groqSession.ts) {
-        const age = Date.now() - (groqSession.ts || 0);
-        const DAY_MS = 24 * 60 * 60 * 1000;
-        if (age < DAY_MS) {
-          setApiKey(groqSession.key);
-          setShowKeyModal(false);
-        } else {
-          // expired: clear stored session and ask for key again
-          setGroqSession(null);
-          setApiKey('');
-          setShowKeyModal(true);
-        }
-      } else {
-        // no stored key: ask for key
-        setShowKeyModal(true);
-      }
-    } catch (e) {
-      console.warn('Failed to check groqSession', e);
-      setShowKeyModal(true);
-    }
-  }, [groqSessionLoaded]);
-
-  // Periodically check session expiration (e.g., if the app stays open longer than 24h)
-  useEffect(() => {
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const interval = setInterval(() => {
-      try {
-        if (groqSession && groqSession.ts) {
-          const age = Date.now() - groqSession.ts;
-          if (age >= DAY_MS) {
-            setGroqSession(null);
-            setApiKey('');
-            setShowKeyModal(true);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }, 60 * 1000);
-    return () => clearInterval(interval);
-  }, [groqSession]);
   
   // Cloud Sync State
   const [showCloudModal, setShowCloudModal] = useState(false);
-    const [showResetModal, setShowResetModal] = useState(false);
-    const [resetInProgress, setResetInProgress] = useState(false);
-    const [resetResult, setResetResult] = useState(null);
   const [cloudConfig, setCloudConfig] = useStorage('pillars_cloud_config', { apiKey: '', binId: '' });
   const [cloudInfo, setCloudInfo] = useState({ lastSync: null });
   
@@ -2186,8 +2063,6 @@ const Pillars = () => {
   // VALIDAZIONE API KEY ALL'AVVIO - Mostra il modal ogni volta che l'app viene aperta
   useEffect(() => {
     const checkKey = async () => {
-      // Wait for storage load to complete first
-      if (!groqSessionLoaded) return;
       if (!apiKey) {
         setKeyStatus('idle');
         setShowKeyModal(true);
@@ -2211,7 +2086,7 @@ const Pillars = () => {
     };
 
     checkKey();
-  }, [apiKey, groqSessionLoaded]);
+  }, []);
 
   const [activeTab, setActiveTab] = useState('wealth');
   const [activeRoutineId, setActiveRoutineId] = useState(null);
@@ -2936,11 +2811,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
       case 'biohack': return <GarminPanelReal theme={currentTheme} />;
       case 'partner': return <IlariaSystem theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} />;
       case 'uni': return <UnivaqPanel theme={currentTheme} />;
-      case 'refunds': return (
-        <ErrorBoundary>
-          <RefundManager theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} refunds={refunds} setRefunds={setRefunds} refundsLoaded={refundsLoaded} />
-        </ErrorBoundary>
-      );
+      case 'refunds': return <RefundManager theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} refunds={refunds} setRefunds={setRefunds} refundsLoaded={refundsLoaded} />;
       case 'fabric': return <FabricConfigurator theme={currentTheme} />;
       default: return null;
     }
@@ -2948,14 +2819,13 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
-      {/* Test banner removed in favor of cleaner UI */}
       
       {/* API KEY MODAL */}
       {showKeyModal && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
-                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta per 24 ore).</p>
+                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
                   
                   {keyStatus === 'error' && (
                       <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
@@ -2980,10 +2850,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
                       onKeyDown={(e) => {
                           if(e.key === 'Enter') {
-                              const v = e.target.value;
-                              setApiKey(v);
-                              // persist session with timestamp
-                              setGroqSession({ key: v, ts: Date.now() });
+                              setApiKey(e.target.value);
                               setShowKeyModal(false);
                           }
                       }}
@@ -3002,8 +2869,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                           const manualKey = document.getElementById('manual-key').value;
                           if (manualKey) {
                             setApiKey(manualKey);
-                            // persist session with timestamp
-                            setGroqSession({ key: manualKey, ts: Date.now() });
                             setShowKeyModal(false);
                           }
                         }}
@@ -3150,55 +3015,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                 <button onClick={() => setShowKeyModal(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Configura API Key" data-no-edit>
                   <Key size={20} className={keyStatus === 'valid' ? 'text-emerald-400' : keyStatus === 'checking' ? 'text-blue-400' : keyStatus === 'error' ? 'text-rose-400' : 'text-slate-400'} />
                 </button>
-                <button onClick={() => setShowResetModal(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Hard Reset (Render redeploy - clear cache)" data-no-edit>
-                  <RefreshCw size={20} className="text-sky-400" />
-                </button>
               </div>
-
-                  {/* RENDER HARD RESET MODAL */}
-                  {showResetModal && (
-                    <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-                      <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <RefreshCw size={20} className="text-sky-400"/> Hard Reset (Render)
-                          </h3>
-                          <button onClick={() => setShowResetModal(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
-                        </div>
-                        <p className="text-sm text-slate-400 mb-4">Questa azione forza un deploy su Render e tenta di pulire la cache di build. Utilizzare solo per aggiornamenti urgenti o quando l'app su Render non risponde correttamente.</p>
-                        {resetResult && (
-                          <div className={`mb-4 p-3 rounded-lg text-xs ${resetResult.success ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-200' : 'bg-rose-500/10 border border-rose-500/30 text-rose-200'}`}>
-                            {resetResult.message || JSON.stringify(resetResult)}
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button onClick={() => setShowResetModal(false)} disabled={resetInProgress} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors text-xs uppercase">Annulla</button>
-                          <button onClick={async () => {
-                            setResetInProgress(true);
-                            setResetResult(null);
-                            try {
-                              const headers = { 'Content-Type': 'application/json' };
-                              if (import.meta.env.VITE_PILLARS_TOKEN) headers.Authorization = `Bearer ${import.meta.env.VITE_PILLARS_TOKEN}`;
-                              const resp = await fetch('/api/render/hard-reset', { method: 'POST', headers, body: JSON.stringify({ commit: import.meta.env.VITE_COMMIT || undefined }) });
-                              const data = await resp.json();
-                              if (!resp.ok) {
-                                setResetResult({ success: false, message: data.error || 'Failed', payload: data });
-                              } else {
-                                setResetResult({ success: true, message: 'Redeploy triggered — controlla Render dashboard per lo stato', payload: data });
-                              }
-                            } catch (e) {
-                              setResetResult({ success: false, message: e.message || 'Exception' });
-                            } finally {
-                              setResetInProgress(false);
-                            }
-                          }} className={`flex-1 py-3 ${resetInProgress ? 'bg-amber-500/30 text-white cursor-wait' : 'bg-amber-500 hover:bg-amber-400 text-white'} font-bold rounded-lg transition-colors text-xs uppercase`}>
-                            {resetInProgress ? 'Eseguendo...' : 'Esegui Hard Reset'}
-                          </button>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-3">Note: il server potrebbe impiegare qualche minuto per ricostruire il servizio.</div>
-                      </div>
-                    </div>
-                  )}
             </div>
 
             {/* TABS CON ANIMAZIONE FLUIDA */}
