@@ -13,6 +13,7 @@
     "live": "node run-live.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
+    "check:vscode-tasks": "node ./tools/check_tasks_presentation.js",
     "preview": "vite preview",
     "build:ico": "node ./tools/build-ico.js"
   },
