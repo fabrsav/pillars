@@ -585,50 +585,11 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
-<<<<<<< HEAD
-          <button
-            onClick={() => {
-              const manualKey = document.getElementById('manual-key')?.value;
-              if (manualKey) {
-                setApiKey(manualKey);
-                setShowKeyModal(false);
-                setKeyStatus('valid');
-              } else {
-                setKeyStatus('error');
-                setShowKeyModal(true);
-              }
-            }}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
-          >
-            Sblocca
-          </button>
-              {refunds && refunds.length > 0 ? refunds.map((r) => (
-                <div key={r.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
-              {(r.trackingCode || r.pickupCode) && (
-                <>
-                  <div className="mt-3">
-                    <button
-                      onClick={() => {
-                        const manualKey = document.getElementById('manual-key')?.value;
-                        if (!manualKey) { setKeyStatus('error'); return; }
-                        const willUpdateSource = window.confirm('Vuoi aggiornare il file groq-key-manager.js e rimuovere la chiave in chiaro dal sorgente? (non supportato in modalità sessione)');
-                        if (willUpdateSource) {
-                          alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
-                        }
-                        setApiKey(manualKey);
-                        setShowKeyModal(false);
-                        setKeyStatus('valid');
-                      }}
-                      className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
-                    >Imposta passphrase (sessione)</button>
-                  </div>
-=======
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
         </div>
       </div>
->>>>>>> origin/merge/wip-squash-from-main
 
       {/* LISTA RIMBORSI */}
       {mode === 'list' && (
