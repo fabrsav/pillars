@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import itemsData from '../data/items.json';
 
 const FieldToggle = ({value, onChange, trueLabel='Sì', falseLabel='No'}) => (
@@ -17,8 +17,66 @@ const DailyItems = () => {
     }
   });
 
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
+  const [syncMessage, setSyncMessage] = useState('');
+  const pendingSave = useRef(false);
+  const saveTimeout = useRef(null);
+
+  // On mount: try to load server-side saved copy if available
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch('/api/store/daily_items');
+        if (!resp.ok) {
+          // No server copy yet or endpoint not available; keep local
+          return;
+        }
+        const data = await resp.json();
+        if (!cancelled && Array.isArray(data)) {
+          setItems(data);
+          try { localStorage.setItem('daily_items', JSON.stringify(data)); } catch (_) {}
+          setSyncStatus('synced');
+        }
+      } catch (e) {
+        // network error -> server not available; ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem('daily_items', JSON.stringify(items)); } catch (e) { console.warn('Impossibile salvare daily_items', e); }
+
+    // Debounced server save
+    pendingSave.current = true;
+    setSyncStatus('idle');
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(async () => {
+      if (!pendingSave.current) return;
+      setSyncStatus('syncing');
+      try {
+        const resp = await fetch('/api/store/daily_items', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items)
+        });
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => '');
+          setSyncStatus('error');
+          setSyncMessage(`Server error: ${resp.status} ${txt}`);
+          console.warn('[DailyItems] Server save failed', resp.status, txt);
+        } else {
+          setSyncStatus('synced');
+          setSyncMessage('');
+          pendingSave.current = false;
+        }
+      } catch (e) {
+        setSyncStatus('error');
+        setSyncMessage(e.message || 'Network error');
+        console.warn('[DailyItems] Server save exception', e);
+      }
+    }, 600);
+
+    return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current); };
   }, [items]);
 
   const updateItem = (id, patch) => {
@@ -41,6 +99,7 @@ const DailyItems = () => {
     <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-sm">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-semibold text-slate-200">Oggettini quotidiani</h4>
+        <div className="text-xs text-slate-400">{syncStatus === 'syncing' ? 'Sincronizzazione...' : syncStatus === 'synced' ? 'Salvato sul server' : syncStatus === 'error' ? `Errore: ${syncMessage}` : ''}</div>
         <div className="flex gap-2">
           <button onClick={exportJson} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta</button>
           <button onClick={resetDefaults} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Reset</button>

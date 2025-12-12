@@ -7,10 +7,14 @@
     "dev": "concurrently \"npm run server\" \"vite\"",
     "server": "node server.js",
     "build": "vite build",
+    "check:refunds": "node scripts/check_refunds.js",
+    "sync": "git add -A && git commit -m \"chore: sync from dev container\" || echo \"No changes to commit\" && git push -u origin main",
+    "sync:watch": "node scripts/auto_sync.js",
     "live": "node run-live.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "build:ico": "node ./tools/build-ico.js"
+    "build:ico": "node ./tools/build-ico.js",
+    "test": "vitest"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
@@ -23,20 +27,26 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^14.3.1",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.18",
+    "chokidar": "^3.6.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "jsdom": "^22.1.0",
+    "playwright": "^1.57.0",
     "postcss": "^8.4.35",
     "svg-to-ico": "^1.0.17",
     "tailwind-scrollbar": "^3.1.0",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^5.1.6"
+    "vite": "^5.1.6",
+    "vitest": "^1.6.1"
   }
 }
