@@ -107,6 +107,39 @@ function encryptWithPassword(plaintext, password) {
   };
 }
 
+// Helper: commit a file to GitHub repo (creates or updates)
+async function commitFileToGithub(repoPath, content, message) {
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
+  const GITHUB_REPO = process.env.GITHUB_REPO || null;
+  const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+  if (!GITHUB_TOKEN || !GITHUB_REPO) throw new Error('GITHUB_TOKEN or GITHUB_REPO not configured');
+
+  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${encodeURIComponent(repoPath)}`;
+  const headers = { Authorization: `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json', 'User-Agent': 'pillars-github-store' };
+
+  // Try to get existing file SHA (if it exists) so we can update
+  let sha = null;
+  try {
+    const getResp = await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+    if (getResp.ok) {
+      const parsed = await getResp.json();
+      if (parsed && parsed.sha) sha = parsed.sha;
+    }
+  } catch (e) {
+    // ignore - file might not exist or network error
+  }
+
+  const body = { message: message || `Automated save: ${repoPath}`, content: Buffer.from(content, 'utf8').toString('base64'), branch: GITHUB_BRANCH };
+  if (sha) body.sha = sha;
+
+  const putResp = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  if (!putResp.ok) {
+    const txt = await putResp.text().catch(() => '<no body>');
+    throw new Error(`GitHub commit failed: ${putResp.status} ${txt}`);
+  }
+  return await putResp.json();
+}
+
 function saveRecoveryTokenHash(token) {
   try { fs.mkdirSync(DB_DIR, { recursive: true }); } catch(_) {}
   const hash = crypto.createHash('sha256').update(token).digest('hex');
