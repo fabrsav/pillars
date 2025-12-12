@@ -619,11 +619,56 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
+<<<<<<< HEAD
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
         </div>
       </div>
+=======
+          <button
+            onClick={() => {
+              const manualKey = document.getElementById('manual-key')?.value;
+              if (manualKey) {
+                setApiKey(manualKey);
+                // persist session with timestamp
+                setGroqSession({ key: manualKey, ts: Date.now() });
+                setShowKeyModal(false);
+                setKeyStatus('valid');
+              } else {
+                setKeyStatus('error');
+                setShowKeyModal(true);
+              }
+            }}
+            className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
+          >
+            Sblocca
+          </button>
+
+        {/* Lista rimborsi: mappa sicura dei rimborsi (evita riferimenti a `r` non definiti) */}
+        {(refunds || []).map((r, idx) => (
+          <div key={r?.id ?? idx}>
+              {(r.trackingCode || r.pickupCode) && (
+                <>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => {
+                        const manualKey = document.getElementById('manual-key')?.value;
+                        if (!manualKey) { setKeyStatus('error'); return; }
+                        const willUpdateSource = window.confirm('Vuoi aggiornare il file groq-key-manager.js e rimuovere la chiave in chiaro dal sorgente? (non supportato in modalità sessione)');
+                        if (willUpdateSource) {
+                          alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
+                        }
+                        setApiKey(manualKey);
+                        // persist session with timestamp
+                        setGroqSession({ key: manualKey, ts: Date.now() });
+                        setShowKeyModal(false);
+                        setKeyStatus('valid');
+                      }}
+                      className="w-full mt-2 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase"
+                    >Imposta passphrase (sessione)</button>
+                  </div>
+>>>>>>> d59ba9d (Fix: prevent crash in RefundManager by safely mapping refunds; export component for tests; add test scaffold and vitest)
 
       {/* LISTA RIMBORSI */}
       {mode === 'list' && (
@@ -692,6 +737,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       </button>
                     </div>
 
+<<<<<<< HEAD
                     {/* Footer con date e azioni */}
                     <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
                       <div className="text-[9px] text-slate-500 flex gap-2">
@@ -713,6 +759,24 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           )}
         </>
       )}
+=======
+              <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
+                <div className="text-[9px] text-slate-500 flex gap-2">
+                  {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
+                  {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => updateStatus(r.id, r.status)} className={'text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ' + (r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500-20 text-emerald-400 border-emerald-500-30')}>
+                    {r.status}
+                    </button>
+                    <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+                    <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+>>>>>>> d59ba9d (Fix: prevent crash in RefundManager by safely mapping refunds; export component for tests; add test scaffold and vitest)
 
         {/* FORM MANUALE */}
         {mode === 'manual' && (
