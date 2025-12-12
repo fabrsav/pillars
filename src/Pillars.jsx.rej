@@ -1,0 +1,50 @@
+diff a/src/Pillars.jsx b/src/Pillars.jsx	(rejected hunks)
+@@ -590,6 +624,8 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
+               const manualKey = document.getElementById('manual-key')?.value;
+               if (manualKey) {
+                 setApiKey(manualKey);
++                // persist session with timestamp
++                setGroqSession({ key: manualKey, ts: Date.now() });
+                 setShowKeyModal(false);
+                 setKeyStatus('valid');
+               } else {
+@@ -601,6 +637,10 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
+           >
+             Sblocca
+           </button>
++
++        {/* Lista rimborsi: mappa sicura dei rimborsi (evita riferimenti a `r` non definiti) */}
++        {(refunds || []).map((r, idx) => (
++          <div key={r?.id ?? idx}>
+               {(r.trackingCode || r.pickupCode) && (
+                 <>
+                   <div className="mt-3">
+@@ -613,6 +653,8 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
+                           alert('Aggiornamento sorgente non disponibile. Usa l\'endpoint server per persistente se necessario.');
+                         }
+                         setApiKey(manualKey);
++                        // persist session with timestamp
++                        setGroqSession({ key: manualKey, ts: Date.now() });
+                         setShowKeyModal(false);
+                         setKeyStatus('valid');
+                       }}
+@@ -667,7 +709,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
+                   {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+                 </div>
+                 <div className="flex gap-2">
+-                    <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
++                    <button onClick={() => updateStatus(r.id, r.status)} className={'text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ' + (r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500-20 text-emerald-400 border-emerald-500-30')}>
+                     {r.status}
+                     </button>
+                     <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+@@ -675,8 +717,8 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
+                 </div>
+               </div>
+             </div>
+-          );
+-        })}
++          </div>
++        ))}
+ 
+         {/* FORM MANUALE */}
+         {mode === 'manual' && (
