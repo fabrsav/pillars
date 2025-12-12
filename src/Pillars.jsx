@@ -226,80 +226,66 @@ const THEMES = {
     gradient: 'from-red-600 to-orange-600', status: 'FOCUS: ENERGIA' 
   },
   brain: { 
-    id: 'brain', label: 'MENTE', 
-    bg: 'from-indigo-950 to-slate-950', accent: 'indigo', 
-    text: 'text-indigo-400', border: 'border-indigo-500/20', 
-    gradient: 'from-indigo-500 to-violet-600', status: 'FOCUS: SVILUPPO' 
-  },
-  heart: { 
-    id: 'heart', label: 'RELAZIONI', 
-    bg: 'from-pink-950 to-slate-950', accent: 'pink', 
-    text: 'text-pink-400', border: 'border-pink-500/20', 
-    gradient: 'from-pink-500 to-fuchsia-600', status: 'FOCUS: CONNESSIONI' 
-  }
-};
+    return (
+      <div key={r.id} className={`p-4 rounded-xl border ${urgency} transition-all hover:border-slate-600`}>
+        {/* Header con negozio, oggetto, importo */}
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
+            <h5 className="text-sm font-bold text-white">{r.item}</h5>
+          </div>
+          <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+        </div>
 
-const IconMap = ({ name, size = 18, className }) => {
-  const icons = { 
-    market: TrendingUp, algo: Code, betting: Zap, cashflow: Landmark, career: Briefcase, 
-    shutdown: Moon, morning: Sun, workout: Dumbbell, nutrition: Utensils, sleep: BedDouble, 
-    sprint: Wind, looksmax: Sparkles, mobility: Activity, biohack: Dna,
-    university: GraduationCap, neuro: Zap, iq: Puzzle, learning: Library, meta: Lightbulb, 
-    love: MessageCircle, travel: Plane, finance: Coins, growth: CalendarHeart,
-    refunds: Receipt,
-    skate: Zap, backfire: Zap, commute: Activity,
-    default: Sparkles
-  };
-  const Icon = icons[name] || icons.default;
-  return <Icon size={size} className={className} />;
-};
+        {/* Tracking e codici ritiro */}
+        {(r.trackingCode || r.pickupCode) && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {r.trackingCode && (
+              <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">📦 {r.trackingCode}</span>
+            )}
+            {r.pickupCode && (
+              <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">🔑 Ritiro: {r.pickupCode}</span>
+            )}
+          </div>
+        )}
 
-// --- WIDGET 1: GESTIONE RIMBORSI (ex Tracking Acquisti) ---
-const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refundsLoaded }) => {
-  const [mode, setMode] = useState('list'); // list, manual, smart
-  const [smartText, setSmartText] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPassword, setShowPassword] = useState({}); 
-  const [showNewPassword, setShowNewPassword] = useState(false);
+        {/* Note */}
+        {r.notes && (
+          <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">{r.notes}</div>
+        )}
 
-  // Debug log
-  useEffect(() => {
-    console.log('[RefundManager] refundsLoaded:', refundsLoaded, 'refunds:', refunds);
-  }, [refunds, refundsLoaded]);
+        {/* Ultimo aggiornamento */}
+        {r.history?.[0] && (
+          <div className="text-[9px] text-slate-400 mb-2">Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}</div>
+        )}
 
-  const [newRefund, setNewRefund] = useState({
-    id: null,
-    platform: '', item: '', email: '', password: '', amount: '', 
-    arrivalDate: '', windowDays: 30, requestDate: '', 
-    status: 'Da Fare', notes: '', history: [],
-    trackingCode: '', pickupCode: ''
-  });
+        {/* Login Section */}
+        <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
+          <div className="flex items-center gap-2 text-[10px] text-slate-400">
+            <Mail size={10}/> {r.email || '-'}
+            {r.password && (
+              <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
+                <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
+              </div>
+            )}
+          </div>
+          <button onClick={() => handleSmartLogin(r.email, r.password)} className={`text-[9px] px-2 py-1 rounded bg-${theme.accent}-500/10 text-${theme.accent}-400 hover:bg-${theme.accent}-500/20 font-bold transition-transform active:scale-95 flex items-center gap-1`}><LogIn size={10}/> Login</button>
+        </div>
 
-  // Local UI state for AI updates
-  const [updateText, setUpdateText] = useState('');
-  const [isAnalyzingUpdate, setIsAnalyzingUpdate] = useState(false);
-
-  // --- SMART LOGIN ---
-  const handleSmartLogin = (email, password) => {
-    if (password) {
-      // Usa execCommand come fallback o clipboard API
-      const copyToClipboard = str => {
-        if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-          return navigator.clipboard.writeText(str);
-        return Promise.reject('The Clipboard API is not available.');
-      };
-
-      // Try to copy password silently (no blocking alerts/popups)
-      copyToClipboard(password).then(() => {
-        console.info('Password copiato in clipboard per login', email);
-      }).catch(() => {
-        // Silent fallback: log only, avoid visible alerts
-        console.warn('Clipboard copy failed for smart login');
-      });
-    } else {
-      console.info(`Opening Gmail for ${email} (no stored password)`);
-    }
-    const googleLoginUrl = `https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(email)}&continue=https://mail.google.com`;
+        {/* Footer con date e azioni */}
+        <div className="flex justify-between items-center pt-2 border-t border-slate-800/50">
+          <div className="text-[9px] text-slate-500 flex gap-2">
+            {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
+            {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>{r.status}</button>
+            <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+            <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
+          </div>
+        </div>
+      </div>
+    );
     // Open Gmail in a new tab (no alerts). Keep this action optional in future.
     try { window.open(googleLoginUrl, '_blank'); } catch(e) { console.warn('Could not open Gmail tab', e); }
   };
@@ -571,6 +557,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             Aggiorna stati (AI)
           </button>
 <<<<<<< HEAD
+<<<<<<< HEAD
           <button
             onClick={() => {
               const manualKey = document.getElementById('manual-key')?.value;
@@ -608,12 +595,17 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                     >Imposta passphrase (sessione)</button>
                   </div>
 =======
+=======
+>>>>>>> origin/wip/refund-manager-refactor
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
         </div>
       </div>
+<<<<<<< HEAD
 >>>>>>> origin/merge/wip-squash-from-main
+=======
+>>>>>>> origin/wip/refund-manager-refactor
 
       {/* LISTA RIMBORSI */}
       {mode === 'list' && (
@@ -630,6 +622,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                   <div key={r.id} className={`p-4 rounded-xl border ${urgency} transition-all hover:border-slate-600`}>
                     {/* Header con negozio, oggetto, importo */}
                     <div className="flex justify-between items-start mb-2">
+<<<<<<< HEAD
                       </div>
                     )}
                   </>
@@ -667,6 +660,45 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       </div>
                     )}
 
+=======
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
+                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
+                      </div>
+                      <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+                    </div>
+
+                    {/* Tracking e codici ritiro */}
+                    {(r.trackingCode || r.pickupCode) && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {r.trackingCode && (
+                          <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                            📦 {r.trackingCode}
+                          </span>
+                        )}
+                        {r.pickupCode && (
+                          <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                            🔑 Ritiro: {r.pickupCode}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Note */}
+                    {r.notes && (
+                      <div className="text-[9px] text-slate-400 mb-2 bg-slate-800/30 p-2 rounded border-l-2 border-slate-600 italic">
+                        {r.notes}
+                      </div>
+                    )}
+
+                    {/* Ultimo aggiornamento */}
+                    {r.history?.[0] && (
+                      <div className="text-[9px] text-slate-400 mb-2">
+                        Ultimo aggiornamento: {r.history[0].summary || r.history[0].text} — {r.history[0].timestamp}
+                      </div>
+                    )}
+
+>>>>>>> origin/wip/refund-manager-refactor
                     {/* Login Section */}
                     <div className="bg-slate-900/50 rounded p-2 mb-2 border border-slate-800/50 flex justify-between items-center">
                       <div className="flex items-center gap-2 text-[10px] text-slate-400">
@@ -701,14 +733,11 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               })}
             </div>
 <<<<<<< HEAD
-        )) : (
-          <div className="text-slate-500">Nessun rimborso</div>
-        )}
-=======
+              })}
+            </div>
           )}
         </>
       )}
->>>>>>> origin/merge/wip-squash-from-main
 
         {/* FORM MANUALE */}
         {mode === 'manual' && (
