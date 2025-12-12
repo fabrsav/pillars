@@ -8,5 +8,28 @@
 			"isBackground": true,
 			"group": "none"
 		}
+		{
+			"label": "Git: Auto Sync (watch)",
+			"type": "shell",
+			"command": "npm run sync:watch",
+			"isBackground": true,
+			"group": "none",
+			"problemMatcher": [],
+			"runOptions": { "runOn": "folderOpen" },
+			"options": {
+				"env": {
+					"AUTOSYNC_DEBOUNCE_MS": "5000",
+					"AUTOSYNC_PREFIX": "autopush"
+				}
+			}
+		}
+		{
+			"label": "Git: Sync (add-commit-push)",
+			"type": "shell",
+			"command": "npm run sync",
+			"isBackground": false,
+			"group": "none",
+			"problemMatcher": []
+		}
 	]
 }
