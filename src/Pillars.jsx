@@ -4,54 +4,28 @@
  * ==========================================================================================
  * * PROGETTO: LifeOS / Pillars (React Single File Component)
  * OBIETTIVO: Dashboard personale olistica (Wealth, Health, Brain, Heart).
- * * * ARCHITETTURA:
- * - Framework: React (con Hooks: useState, useEffect, useRef).
- * - Styling: Tailwind CSS (uso intensivo di gradienti, backdrop-blur, animate-in).
- * - Icone: Lucide-react.
- * - API AI: Groq (Llama 3.3 70B).
- * - Persistenza: Backend Locale (Node.js + JSON Files).
- * * * MODULI CRITICI (NON RIMUOVERE O SEMPLIFICARE ECCESSIVAMENTE):
- * 1. REFUND MANAGER (Gestione rimborsi):
- * - Rinomina visiva: "Gestione rimborsi" (NO "Tracking Acquisti").
- * - Input "Smart" per parsing testo naturale -> JSON.
- * - "Smart Login": copia password clipboard + apre link provider.
- * * 2. ILARIA OS (Relationship Manager - FULL CONTEXT VERSION):
- * - ⚠️ CRITICO: L'utente richiede l'analisi dell'INTERO file chat (anche 2M+ token).
- * - NON REINTRODURRE CAMPIONAMENTO O TAGLI (Sampling/Slicing).
- * - Il prompt deve istruire l'LLM a gestire l'intera timeline.
- * - PERSISTENZA: Il localStorage ha un limite di ~5MB. Se il file .txt supera il limite:
- * a) Salvare assolutamente l'ANALISI (JSON) che è piccola.
- * b) Tentare di salvare il TXT, ma gestire l'errore (QuotaExceeded) senza crashare.
- * * 3. LAYOUT & UX:
- * - Sidebar fissa + Dashboard fluida.
- * - Animazioni obbligatorie: `transition-all duration-300 ease-out`.
- * * 4. API & SICUREZZA:
- * - `apiKey` fornita dall'utente/ambiente.
- * ==========================================================================================
- */
-
-import React, { useState, useEffect, useRef } from 'react';
-import FabricConfigurator from './FabricConfigurator';
-import DailyItems from './DailyItems';
-import DeadlineCountdown from './DeadlineCountdown';
-import { 
-  CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
-  DollarSign, TrendingUp, Code, Landmark, Calculator, Dumbbell, Heart, 
-  Utensils, BedDouble, Activity, Brain, BookOpen, Lightbulb, Puzzle, 
-  Briefcase, GraduationCap, Gift, MessageCircle, CalendarHeart, Users, 
-  Edit3, Gem, Droplet, Flame, CheckSquare, Library, Plane, Coins, 
-  ArrowRight, Dna, Timer, Cpu, History, AlertTriangle, Crosshair, 
-  Scissors, Smile, Wind, Plus, Trash2, X, GripVertical, ArrowDownUp,
-  Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock,
-  School, Calendar, BookMarked, ShoppingBag, Mail, AlertCircle, Receipt,
-  Package, CalendarClock, PhoneCall, Key, LogIn, Eye, EyeOff, FileHeart,
-  Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
-} from 'lucide-react';
-
-// --- HOOK PERSISTENZA LOCALE (BACKEND) ---
-const useStorage = (key, initialValue) => {
-  const [value, setValue] = useState(initialValue);
-  const [loaded, setLoaded] = useState(false);
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
+            <button
+              onClick={() => {
+                const manualKey = document.getElementById('manual-key')?.value;
+                if (manualKey) {
+                  setApiKey(manualKey);
+                  // persist session with timestamp
+                  setGroqSession({ key: manualKey, ts: Date.now() });
+                  setKeyStatus('valid');
+                } else {
+                  setKeyStatus('error');
+                  setShowKeyModal(true);
+                }
+              }}
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
+            >
+              Sblocca
+            </button>
+          </div>
+        </div>
 
   useEffect(() => {
     console.log(`[useStorage] Fetching ${key}...`);
