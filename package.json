@@ -47,11 +47,6 @@
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "vite": "^5.1.6",
-<<<<<<< HEAD
-    "vitest": "^1.6.1",
-    "jsdom": "^22.1.0"
-=======
     "vitest": "^1.6.1"
->>>>>>> origin/merge/wip-squash-from-main
   }
 }
