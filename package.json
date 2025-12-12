@@ -14,12 +14,7 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
     "preview": "vite preview",
-    "build:ico": "node ./tools/build-ico.js",
-<<<<<<< HEAD
-    "test": "vitest",
-=======
-    "test": "vitest"
->>>>>>> origin/merge/wip-squash-from-main
+    "build:ico": "node ./tools/build-ico.js"
   },
   "dependencies": {
     "@babel/parser": "^7.22.11",
@@ -31,18 +26,9 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-<<<<<<< HEAD
-<<<<<<< HEAD
-  "@babel/parser": "^7.22.11",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^14.3.1",
-=======
     "@babel/parser": "^7.22.11",
->>>>>>> d59ba9d (Fix: prevent crash in RefundManager by safely mapping refunds; export component for tests; add test scaffold and vitest)
-=======
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
->>>>>>> origin/merge/wip-squash-from-main
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
