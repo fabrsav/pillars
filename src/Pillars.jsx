@@ -154,6 +154,40 @@ const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, r
   }
 };
 
+// --- ERROR BOUNDARY ---
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    // Log the error to the server for later inspection
+    logError(error, 'ErrorBoundary');
+    console.error('ErrorBoundary caught error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 rounded-lg bg-red-900/80 text-white">
+          <div className="font-bold mb-2">Errore nella sezione — riprova più tardi</div>
+          <div className="text-sm opacity-80 mb-4">{this.state.error?.message || 'Errore sconosciuto'}</div>
+          <div className="flex gap-2">
+            <button onClick={() => window.location.reload()} className="py-2 px-3 bg-white/10 rounded">Ricarica</button>
+            <button onClick={() => { alert('Errore segnalato'); logError(this.state.error, 'UserReported'); }} className="py-2 px-3 bg-white/10 rounded">Segnala</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 
 // --- COMPONENTE EDITABLE TEXT (MAGIC PENCIL) ---
@@ -2871,7 +2905,11 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
       case 'biohack': return <GarminPanelReal theme={currentTheme} />;
       case 'partner': return <IlariaSystem theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} />;
       case 'uni': return <UnivaqPanel theme={currentTheme} />;
-      case 'refunds': return <RefundManager theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} refunds={refunds} setRefunds={setRefunds} refundsLoaded={refundsLoaded} />;
+      case 'refunds': return (
+        <ErrorBoundary>
+          <RefundManager theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} refunds={refunds} setRefunds={setRefunds} refundsLoaded={refundsLoaded} />
+        </ErrorBoundary>
+      );
       case 'fabric': return <FabricConfigurator theme={currentTheme} />;
       default: return null;
     }
