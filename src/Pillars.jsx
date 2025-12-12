@@ -676,15 +676,9 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                 );
               })}
             </div>
-<<<<<<< HEAD
-        )) : (
-          <div className="text-slate-500">Nessun rimborso</div>
-        )}
-=======
           )}
         </>
       )}
->>>>>>> origin/merge/wip-squash-from-main
 
         {/* FORM MANUALE */}
         {mode === 'manual' && (
