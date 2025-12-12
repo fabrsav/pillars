@@ -601,6 +601,9 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           >
             Sblocca
           </button>
+              {(refunds || []).map((r, idx) => {
+                return (
+                <div key={r.id} className="mb-4">
               {(r.trackingCode || r.pickupCode) && (
                 <>
                   <div className="mt-3">
@@ -674,7 +677,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                     <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
                 </div>
               </div>
-            </div>
+              </div>
           );
         })}
 
