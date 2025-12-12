@@ -87,6 +87,21 @@ I seguenti componenti sono stati rimossi o deprecati:
 - Committare file .env su Git
 - Condividere chiavi API in chat/email
 
+## Server-side storage (nuovo)
+
+È stata aggiunta persistenza robusta su GitHub per i dati salvati dall'app (es. `daily_items`). Per abilitarla in produzione (Render, ecc.) impostare le seguenti variabili d'ambiente:
+
+- `GITHUB_TOKEN`: token personale con permessi `repo` (o `contents`) per il repo target
+- `GITHUB_REPO`: repository in formato `owner/repo`
+- `GITHUB_BRANCH` (opzionale): branch di destinazione (default: `main`)
+- `GITHUB_STORE_PREFIX` (opzionale): prefisso del path nel repo (default: `db`)
+
+Comportamento:
+- Se `GITHUB_TOKEN` e `GITHUB_REPO` sono presenti, ogni `POST /api/store/:key` cercherà di creare/aggiornare `GITHUB_STORE_PREFIX/:key.json` nel repo specificato. Il fallback è la scrittura su disco (`db/*.json`).
+- L'endpoint `/api/store/:key` è protetto tramite token server (`PILLARS_TOKEN` / `VITE_PILLARS_TOKEN`) quando configurato: assicurarsi di impostarlo in produzione.
+
+Nota: l'uso di GitHub come storage è una soluzione semplice e resistente ai redeploy, ma non è una DB a bassa latenza — valutare alternative (DB gestito, bucket) per requisiti più stringenti.
+
 ## Note Importanti
 
 ⚠️ **Sessioni Temporanee**: Mobile app richiede credenziali ad ogni apertura. Questo è intenzionale per sicurezza.
