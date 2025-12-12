@@ -50,6 +50,16 @@ Object.entries(changes).forEach(([k, v]) => {
   console.log(` - ${k}: ${JSON.stringify(cfg[k])} => ${JSON.stringify(v)}`);
 });
 
+const autoYes = process.argv.includes('--yes') || process.env.CI_APPLY === '1';
+if (autoYes) {
+  Object.entries(changes).forEach(([k, v]) => {
+    cfg[k] = v;
+  });
+  writeJson(target, cfg);
+  console.log('Settings updated (auto). Backup created at ' + target + '.bak');
+  process.exit(0);
+}
+
 const readline = require('readline').createInterface({ input: process.stdin, output: process.stdout });
 readline.question('\nApply these changes to your global VS Code settings? (y/N) ', (ans) => {
   readline.close();
