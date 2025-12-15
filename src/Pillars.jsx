@@ -142,7 +142,8 @@ const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, r
       if (response.status === 429) throw new Error("RATE_LIMIT");
       const errorText = await response.text();
       console.error('[Groq API Error]', response.status, errorText);
-      throw new Error(`API Error: ${response.status}`);
+      const snippet = (errorText || '').slice(0, 200).replace(/\s+/g, ' ');
+      throw new Error(`API Error: ${response.status} ${snippet}`);
     }
 
     const data = await response.json();
