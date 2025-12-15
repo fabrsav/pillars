@@ -2888,6 +2888,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     />
                   </div>
 
+                  <div className="mb-2 text-xs text-slate-400">Oppure usa una chiave già presente sul server (utile per primo avvio locale).</div>
                   <div className="flex gap-2">
                     <button 
                         onClick={() => setShowKeyModal(false)}
@@ -2896,16 +2897,38 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                         Continua senza AI
                     </button>
                     <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const manualKey = document.getElementById('manual-key').value;
                           if (manualKey) {
                             setApiKey(manualKey);
+                            setKeyStatus('valid');
                             setShowKeyModal(false);
+                            return;
+                          }
+
+                          // Try loading plaintext key from server (legacy file)
+                          try {
+                            const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                            if (res.ok) {
+                              const j = await res.json();
+                              if (j && j.key) {
+                                setApiKey(j.key);
+                                setKeyStatus('valid');
+                                setShowKeyModal(false);
+                                return;
+                              }
+                            }
+                            const txt = await res.text();
+                            setKeyStatus('error');
+                            console.warn('Load plaintext key failed:', txt);
+                          } catch (e) {
+                            console.error('Load plaintext key error', e);
+                            setKeyStatus('error');
                           }
                         }}
                         className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
                     >
-                        Sblocca
+                        Sblocca / Usa chiave server
                     </button>
                   </div>
               </div>
