@@ -138,11 +138,35 @@ const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, r
     });
     
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new Error("INVALID_KEY");
-      if (response.status === 429) throw new Error("RATE_LIMIT");
       const errorText = await response.text();
       console.error('[Groq API Error]', response.status, errorText);
       const snippet = (errorText || '').slice(0, 200).replace(/\s+/g, ' ');
+      if (response.status === 401 || response.status === 403) throw new Error("INVALID_KEY");
+      if (response.status === 429) throw new Error("RATE_LIMIT");
+
+      // Detect model-not-found and try a safe fallback (fast model) once
+      if (/model.*does not exist|model_not_found|does not exist/i.test(snippet) && model !== MODEL_FAST) {
+        console.warn('[Groq] Model not available, retrying with fast fallback model');
+        const fallbackBody = { ...requestBody, model: MODEL_FAST };
+        const fallbackResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(fallbackBody)
+        });
+
+        if (fallbackResp.ok) {
+          const fd = await fallbackResp.json();
+          return fd.choices?.[0]?.message?.content || null;
+        }
+        const fbTxt = await fallbackResp.text();
+        console.error('[Groq fallback error]', fallbackResp.status, fbTxt);
+        const fbSnippet = (fbTxt || '').slice(0, 200).replace(/\s+/g, ' ');
+        throw new Error(`API Error: ${response.status} ${snippet}; fallback: ${fallbackResp.status} ${fbSnippet}`);
+      }
+
       throw new Error(`API Error: ${response.status} ${snippet}`);
     }
 
