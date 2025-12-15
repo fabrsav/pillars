@@ -496,6 +496,44 @@ app.post('/api/groq', requireAuth, async (req, res) => {
   }
 });
 
+// Return a curated list of models (some may require access)
+app.get('/api/groq-models', (req, res) => {
+  try {
+    return res.json({ models: [ 'openai/gpt-oss-120b', 'groq/compound', 'google/gemini-2.0-flash-001', 'google/gemini-3-pro-preview' ] });
+  } catch (e) {
+    console.error('[/api/groq-models] Error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Persist a chosen model to disk
+app.post('/api/groq-model-choice', requireAuth, (req, res) => {
+  try {
+    const model = req.body && req.body.model;
+    if (!model) return res.status(400).json({ error: 'model required' });
+    const filePath = path.join(DB_DIR, 'pillars_groq_model_choice.json');
+    fs.writeFileSync(filePath, JSON.stringify({ model }, null, 2));
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[/api/groq-model-choice] Error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Read the persisted model choice
+app.get('/api/groq-model-choice', (req, res) => {
+  try {
+    const filePath = path.join(DB_DIR, 'pillars_groq_model_choice.json');
+    if (!fs.existsSync(filePath)) return res.json({ model: 'openai/gpt-oss-120b' });
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return res.json({ model: parsed.model || 'openai/gpt-oss-120b' });
+  } catch (e) {
+    console.error('[/api/groq-model-choice GET] Error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // ==================== UTILITY ====================
 
 // Reintroduce endpoint to open VS Code from the UI
