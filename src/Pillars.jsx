@@ -2049,6 +2049,8 @@ const Pillars = () => {
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('');
   
   // Cloud Sync State
   const [showCloudModal, setShowCloudModal] = useState(false);
@@ -2131,6 +2133,24 @@ const Pillars = () => {
     };
 
     checkKey();
+    // Pre-load available models and selected model for key modal
+    (async () => {
+      try {
+        const mres = await fetch('/api/groq-models');
+        if (mres.ok) {
+          const j = await mres.json();
+          if (j && Array.isArray(j.models)) setModels(j.models);
+        }
+      } catch (e) { /* ignore */ }
+
+      try {
+        const cres = await fetch('/api/groq-model-choice');
+        if (cres.ok) {
+          const j = await cres.json();
+          if (j && j.model) setSelectedModel(j.model);
+        }
+      } catch (e) { /* ignore */ }
+    })();
   }, []);
 
   const [activeTab, setActiveTab] = useState('wealth');
@@ -2910,6 +2930,29 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                           }
                       }}
                     />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-xs text-slate-400 mb-2 block">Seleziona modello Groq (opzionale):</label>
+                    <div className="flex gap-2 items-center">
+                      <select value={selectedModel} onChange={e=>setSelectedModel(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-emerald-500 outline-none text-sm">
+                        <option value="">-- usa default --</option>
+                        {models.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch('/api/groq-model-choice', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: selectedModel }) });
+                          if (res.ok) {
+                            setKeyStatus('model_saved');
+                          } else {
+                            const j = await res.json().catch(()=>null);
+                            setKeyStatus('error');
+                            console.warn('Save model failed', j);
+                          }
+                        } catch (e) { console.error(e); setKeyStatus('error'); }
+                      }} className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs">Salva</button>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-2">Consiglio: scegli un modello a cui hai accesso per evitare errori di model_not_found.</div>
                   </div>
 
                   <div className="mb-2 text-xs text-slate-400">Oppure usa una chiave già presente sul server (utile per primo avvio locale).</div>
