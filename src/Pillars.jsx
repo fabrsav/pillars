@@ -2063,9 +2063,31 @@ const Pillars = () => {
   useEffect(() => {
     const checkKey = async () => {
       if (!apiKey) {
-        setKeyStatus('idle');
-        setShowKeyModal(true);
-        return;
+        // Try server-side decrypted key before prompting user
+        try {
+          const res = await fetch('/api/groq-key');
+          if (res.ok) {
+            const j = await res.json();
+            if (j && j.key) {
+              setApiKey(j.key);
+              setKeyStatus('checking');
+              // continue to validate below
+            } else {
+              setKeyStatus('idle');
+              setShowKeyModal(true);
+              return;
+            }
+          } else {
+            // Locked / not decrypted on server
+            setKeyStatus('idle');
+            setShowKeyModal(true);
+            return;
+          }
+        } catch (e) {
+          setKeyStatus('idle');
+          setShowKeyModal(true);
+          return;
+        }
       }
 
       setKeyStatus('checking');
