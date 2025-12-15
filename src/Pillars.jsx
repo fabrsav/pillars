@@ -3508,9 +3508,34 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                      <span className="text-cyan-400 text-xs uppercase tracking-wider font-medium">Deep Analysis</span>
                    </div>
                    <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line prose prose-invert prose-sm max-w-none">
-                     {nexusAnalysis.aiInsight.split('**').map((part, i) => 
-                       i % 2 === 1 ? <strong key={i} className="text-cyan-300">{part}</strong> : part
-                     )}
+                    {nexusAnalysis.aiInsight.split('**').map((part, i) => 
+                      i % 2 === 1 ? <strong key={i} className="text-cyan-300">{part}</strong> : part
+                    )}
+                    {/* If the AI indicates a missing API key, show quick actions */}
+                    {/API Key|API Key mancante|Chiave/i.test(nexusAnalysis.aiInsight) && (
+                      <div className="mt-3 flex gap-2">
+                        <button onClick={() => setShowKeyModal(true)} className="py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs">Configura chiave</button>
+                        <button onClick={async () => {
+                          try {
+                            const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                            if (res.ok) {
+                              const j = await res.json();
+                              if (j && j.key) {
+                                setApiKey(j.key);
+                                // Trigger immediate re-run of analysis
+                                runNexusAnalysis();
+                              } else {
+                                alert('Nessuna chiave server trovata.');
+                              }
+                            } else {
+                              const txt = await res.text();
+                              alert('Nessuna chiave server trovata.');
+                              console.warn('Load plaintext failed', txt);
+                            }
+                          } catch (e) { console.error(e); alert('Errore nel leggere la chiave server'); }
+                        }} className="py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs">Usa chiave server</button>
+                      </div>
+                    )}
                    </div>
                  </div>
                  
