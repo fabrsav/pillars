@@ -341,6 +341,26 @@ app.post('/api/groq-key/decrypt', (req, res) => {
   }
 });
 
+// Load plaintext key from legacy file (no password required)
+app.post('/api/groq-key/load-plaintext', requireAuth, (req, res) => {
+  try {
+    const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
+    if (!fs.existsSync(groqFile)) return res.status(404).json({ error: 'No plaintext key found' });
+    const raw = fs.readFileSync(groqFile, 'utf8');
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string' && parsed.trim()) return res.json({ success: true, key: parsed.trim(), note: 'plaintext' });
+    } catch (e) {
+      // Not JSON — treat raw as plaintext
+      if (raw && raw.trim()) return res.json({ success: true, key: raw.trim(), note: 'plaintext' });
+    }
+    return res.status(404).json({ error: 'No plaintext key found' });
+  } catch (e) {
+    console.error('[/api/groq-key/load-plaintext] Error:', e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Change passphrase: requires currentPassword and newPassword
 app.post('/api/groq-key/change', requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
