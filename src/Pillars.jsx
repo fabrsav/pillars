@@ -2716,9 +2716,21 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
         aiInsight: aiInsight || "Analisi completata."
       });
     } catch (e) {
+      // Provide clearer error messages depending on the error type
+      try { logError(e, 'NEXUS_ANALYSIS'); } catch (_) {}
+
+      let aiMsg = "⚠️ Errore AI. Statistiche disponibili.";
       if (e.message === "INVALID_KEY" || e.message === "MISSING_KEY") {
         handleApiKeyError();
+        aiMsg = "⚠️ API Key mancante o invalida. Configura Groq per insight AI.";
+      } else if (e.message === "RATE_LIMIT") {
+        aiMsg = "⚠️ Limite API raggiunto (rate limit). Riprova più tardi.";
+      } else if (typeof e.message === 'string' && e.message.startsWith('API Error')) {
+        aiMsg = `⚠️ Errore API Groq (${e.message}). Statistiche disponibili.`;
+      } else if (e.message) {
+        aiMsg = `⚠️ Errore AI: ${e.message}. Statistiche disponibili.`;
       }
+
       setNexusAnalysis({
         stats,
         totalTasks,
@@ -2735,9 +2747,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
         },
         refunds: { urgent: urgentRefunds.length, totalValue: totalRefundValue, items: [] },
         garmin: garminData,
-        aiInsight: e.message === "INVALID_KEY" || e.message === "MISSING_KEY" 
-          ? "⚠️ API Key mancante. Configura Groq per insight AI."
-          : "⚠️ Errore AI. Statistiche disponibili."
+        aiInsight: aiMsg
       });
     }
     setNexusLoading(false);
