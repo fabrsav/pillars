@@ -103,20 +103,19 @@ const logError = async (error, context) => {
 // --- CONFIGURAZIONE GROQ API ---
 // NOTA: Usa SEMPRE il modello SMART (reasoning) per tutti i task!
 const MODEL_FAST = 'google/gemini-2.0-flash-001';  // Modello veloce per task semplici
-const MODEL_SMART = 'groq/compound';  // Modello "pensante" predefinito per analisi profonde (Nexus Core)
+const MODEL_SMART = 'google/gemini-3-pro-preview';  // Modello top per analisi profonde (Nexus Core)
 
-const callGroq = async (prompt, apiKey, model, maxTokens = 2048, reasoningEffort = 'high') => {
+const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, reasoningEffort = 'high') => {
   if (!apiKey) throw new Error("MISSING_KEY");
-  const effectiveModel = model || (window && window.PILLARS_SELECTED_MODEL) || MODEL_SMART;
   
   try {
     // Usa reasoning effort alto per risposte più intelligenti
     // Consideriamo modello di reasoning qualunque modello tranne il modello "fast".
     // In questo modo Gemini / Llama / altri modelli "smart" ricevono gli stessi hint di reasoning.
-    const isReasoningModel = effectiveModel !== MODEL_FAST;
+    const isReasoningModel = model !== MODEL_FAST;
     
     const requestBody = {
-      "model": effectiveModel,
+      "model": model,
       "messages": [{ "role": "user", "content": prompt }],
       "temperature": 0.6,  // Ottimale per reasoning (0.5-0.7)
       "max_completion_tokens": maxTokens,
@@ -168,11 +167,51 @@ const callGroq = async (prompt, apiKey, model, maxTokens = 2048, reasoningEffort
         throw new Error(`API Error: ${response.status} ${snippet}; fallback: ${fallbackResp.status} ${fbSnippet}`);
       }
 
-      // Detect reasoning_effort not supported and retry without reasoning params
-      if (/reasoning_effort/i.test(snippet) || /`reasoning_effort` is not supported/i.test(snippet) || /not supported with this model/i.test(snippet)) {
-        console.warn('[Groq] reasoning_effort not supported by model, retrying without reasoning params');
-        const simpleBody = {
-          {/* API key modal removed - user requested it to not appear */}
+      throw new Error(`API Error: ${response.status} ${snippet}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || null;
+
+  } catch (error) {
+    logError(error, `Groq API (${model})`);
+    throw error;
+  }
+};
+
+
+
+// --- COMPONENTE EDITABLE TEXT (MAGIC PENCIL) ---
+const EditableText = ({ id, defaultText, className, type = 'text' }) => {
+  const [overrides, setOverrides] = useStorage('pillars_text_overrides', {});
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState('');
+  
+  // Global edit mode state (shared via event or context, but for simplicity we use a local toggle here triggered by a global class or prop if needed)
+  // Actually, we will use a specific "Text Edit Mode" button in the UI to toggle a class on the body, or just let the user click to edit if enabled.
+  // Let's use a simple "Click to Edit" if a global "Text Edit Mode" is active.
+  // Since we don't have a global context provider easily here without refactoring, we'll check a window property or similar, OR just add a small UI indicator.
+  
+  // BETTER APPROACH: The user asked for a "vacant pencil". We'll use a state in the main component passed down, OR we can just make these always editable via double click if we want, but the user asked for a specific tool.
+  // Let's assume `window.TEXT_EDIT_MODE` is toggled by the pencil.
+  
+  const [editModeEnabled, setEditModeEnabled] = useState(false);
+
+  useEffect(() => {
+    const checkMode = () => setEditModeEnabled(window.TEXT_EDIT_MODE === true);
+    window.addEventListener('pillars-text-edit-toggle', checkMode);
+    return () => window.removeEventListener('pillars-text-edit-toggle', checkMode);
+  }, []);
+
+  const text = overrides[id] || defaultText;
+
+  const handleSave = () => {
+    setOverrides(prev => ({ ...prev, [id]: tempValue }));
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
       <div className="flex items-center gap-1 animate-in fade-in duration-200">
         {type === 'textarea' ? (
              <textarea 
@@ -238,13 +277,6 @@ const THEMES = {
     text: 'text-pink-400', border: 'border-pink-500/20', 
     gradient: 'from-pink-500 to-fuchsia-600', status: 'FOCUS: CONNESSIONI' 
   }
-  ,
-  items: {
-    id: 'items', label: 'OGGETTINI',
-    bg: 'from-cyan-950 to-slate-950', accent: 'cyan',
-    text: 'text-cyan-400', border: 'border-cyan-500/20',
-    gradient: 'from-cyan-500 to-blue-600', status: 'OGGETTINI E ACCESSORI'
-  }
 };
 
 const IconMap = ({ name, size = 18, className }) => {
@@ -277,11 +309,10 @@ const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refu
 
   const [newRefund, setNewRefund] = useState({
     id: null,
-    platform: '', item: '', email: '', password: '', amount: 0,
-    amountCurrency: 'EUR', arrivalDate: '', estimatedDelivery: '', windowDays: 30, requestDate: '',
+    platform: '', item: '', email: '', password: '', amount: '', 
+    arrivalDate: '', windowDays: 30, requestDate: '', 
     status: 'Da Fare', notes: '', history: [],
-    trackingCode: '', pickupCode: '', orderId: '', contactPhone: '', priority: 'normal', category: '',
-    assignedTo: '', createdAt: '', lastUpdated: ''
+    trackingCode: '', pickupCode: ''
   });
 
   // Local UI state for AI updates
@@ -482,8 +513,7 @@ Testo da analizzare: """${text}"""\n`;
           arrivalDate: parsed.arrivalDate || r.arrivalDate,
           trackingCode: parsed.trackingCode || r.trackingCode || '',
           pickupCode: parsed.pickupCode || r.pickupCode || '',
-          history: newHistory,
-          lastUpdated: today
+          history: newHistory
         };
         return updatedRefund;
       }));
@@ -524,52 +554,13 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
 
         if (parsed.status && parsed.status !== r.status) {
           const entry = { id: Date.now() + Math.random(), text: parsed.summary || `Stato aggiornato a ${parsed.status} dal bot`, status: parsed.status, timestamp: parsed.date || (new Date().toISOString().split('T')[0]) };
-          setRefunds(prev => prev.map(rr => rr.id === r.id ? { ...rr, status: parsed.status, history: [entry, ...(rr.history||[])], lastUpdated: entry.timestamp } : rr));
+          setRefunds(prev => prev.map(rr => rr.id === r.id ? { ...rr, status: parsed.status, history: [entry, ...(rr.history||[])] } : rr));
         }
       } catch (e) {
         console.warn('Auto update failed for', r.id, e);
       }
     }
     setIsProcessing(false);
-  };
-
-  // Analisi aggregata dei rimborsi: segnala "stale" e "needsUpdate"
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [isAnalyzingAll, setIsAnalyzingAll] = useState(false);
-
-  const analyzeAllRefunds = async () => {
-    if (!apiKey) return onApiKeyError();
-    if (!refunds || refunds.length === 0) return setAnalysisResult({ stale: [], needsUpdate: [], summary: 'Nessun rimborso' });
-    setIsAnalyzingAll(true);
-
-    const { buildRefundsContext, parseAnalysisResponse } = await import('./refundAnalysis');
-    const refundsContext = buildRefundsContext(refunds);
-
-    const prompt = `Sei un assistente che analizza rimborsi. Ricevi una lista di rimborsi con campi come id, platform, item, status, requestDate, arrivalDate, notes e history (ultimi aggiornamenti).
-Analizza e individua 2 cose principali:
-1) "stale": rimborsi pendenti da molto tempo (es. requestDate o ultimo aggiornamento > 14 giorni fa, o arrivati oltre 30 giorni fa nel caso in cui non siano stati chiusi). Per ogni elemento, fornisci: index, id, item, platform, daysPending (numero di giorni dall'ultimo evento importante) e reason breve.
-2) "needsUpdate": rimborsi che richiedono intervento o aggiornamento (es. dati mancanti, contraddizioni nello stato, tracking mancante se status è "Spedito", ecc.). Fornisci: index, id, item, platform, reason e suggestion (una breve azione raccomandata).
-
-Rispondi SOLO con JSON valido e niente altro, nel formato:
-{ "stale": [{"index":0,"id":123,"item":"...","platform":"...","daysPending":42,"reason":"..."}], "needsUpdate": [{"index":1,"id":456,"item":"...","platform":"...","reason":"...","suggestion":"..."}], "summary": "Breve riepilogo in una riga" }
-
-Lista rimborsi:\n"""
-${refundsContext}
-"""`;
-
-    try {
-      const res = await callGroq(prompt, apiKey, MODEL_SMART, 1200);
-      if (!res) throw new Error('No response from AI');
-      const parsed = parseAnalysisResponse(res);
-      setAnalysisResult(parsed);
-      return parsed;
-    } catch (err) {
-      console.error('Analisi AI rimborsi fallita', err);
-      alert('Errore nell\'analisi AI: ' + (err.message || err));
-      return null;
-    } finally {
-      setIsAnalyzingAll(false);
-    }
   };
 
   const handleEdit = (item) => {
@@ -582,10 +573,9 @@ ${refundsContext}
     if(!newRefund.item) return;
     
     if (newRefund.id) {
-      setRefunds(refunds.map(r => r.id === newRefund.id ? { ...newRefund, amount: parseFloat(newRefund.amount||0), lastUpdated: new Date().toISOString().split('T')[0], history: newRefund.history || [] } : r));
+        setRefunds(refunds.map(r => r.id === newRefund.id ? newRefund : r));
     } else {
-      const created = new Date().toISOString().split('T')[0];
-      setRefunds([...refunds, { ...newRefund, id: Date.now(), amount: parseFloat(newRefund.amount||0), createdAt: created, lastUpdated: created, history: newRefund.history || [] }]);
+        setRefunds([...refunds, { ...newRefund, id: Date.now() }]);
     }
     
     setNewRefund({ id: null, platform: '', item: '', email: '', password: '', amount: '', arrivalDate: '', windowDays: 30, requestDate: '', status: 'Da Fare', notes: '', trackingCode: '', pickupCode: '' });
@@ -620,9 +610,6 @@ ${refundsContext}
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
-          <button onClick={analyzeAllRefunds} title="Analizza i rimborsi e segnala elementi pendenti o da aggiornare" disabled={isAnalyzingAll || isProcessing} className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
-            {isAnalyzingAll ? 'Analizzo...' : 'Analizza (AI)'}
-          </button>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
@@ -645,15 +632,7 @@ ${refundsContext}
                     {/* Header con negozio, oggetto, importo */}
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
-                          {analysisResult?.stale?.some(s => String(s.id) === String(r.id)) && (
-                            <span className="text-[9px] bg-red-800 text-red-300 px-2 py-0.5 rounded">Pend. da molto</span>
-                          )}
-                          {analysisResult?.needsUpdate?.some(n => String(n.id) === String(r.id)) && (
-                            <span className="text-[9px] bg-amber-800 text-amber-300 px-2 py-0.5 rounded">Richiede aggiornamento</span>
-                          )}
-                        </div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
                         <h5 className="text-sm font-bold text-white">{r.item}</h5>
                       </div>
                       <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
@@ -825,36 +804,6 @@ ${refundsContext}
           <button onClick={() => setMode('smart')} className="py-2 bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-500/30 rounded-xl text-[10px] text-indigo-200 font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
             <Sparkles size={12}/> Smart AI
           </button>
-        </div>
-      )}
-
-      {/* Analisi AI: dettaglio esteso */}
-      {analysisResult && (
-        <div className="mt-4 p-3 rounded-xl border border-slate-800/30 bg-slate-900/30">
-          <div className="flex justify-between items-center mb-2">
-            <div className="text-sm font-bold text-slate-200">Report AI Rimborsi</div>
-            <div className="text-xs text-slate-400">{analysisResult.summary}</div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-[12px] text-slate-300">
-            <div>
-              <div className="text-[11px] text-slate-400 mb-2">Pendenti da molto</div>
-              <div className="space-y-1">
-                {analysisResult.stale?.length === 0 && <div className="text-slate-500">Nessuno</div>}
-                {analysisResult.stale?.map(s => (
-                  <div key={s.id} className="text-[12px]">• {s.item} ({s.platform}) — {s.reason} — {s.daysPending} giorni</div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-400 mb-2">Richiedono aggiornamento</div>
-              <div className="space-y-1">
-                {analysisResult.needsUpdate?.length === 0 && <div className="text-slate-500">Nessuno</div>}
-                {analysisResult.needsUpdate?.map(n => (
-                  <div key={n.id} className="text-[12px]">• {n.item} ({n.platform}) — {n.reason}. <span className="text-slate-400">{n.suggestion}</span></div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -1761,8 +1710,6 @@ const INITIAL_DATA = {
     { id: 'partner', title: 'Partner', icon: 'love', desc: 'Tempo di qualità', tasks: [{id:1, text:'Messaggio buongiorno', completed:false}] },
     { id: 'finance', title: 'Fondo comune', icon: 'finance', desc: 'Obiettivi futuri', tasks: [{id:1, text:'Aggiorna budget', completed:false}] },
   ]
-  ,
-  items: []
 };
 
 // --- GLOBAL INLINE EDITOR (Direct contentEditable - no popup) ---
@@ -2100,6 +2047,7 @@ const Pillars = () => {
   
   const [apiKey, setApiKey] = useState('');
 
+  const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -2137,7 +2085,7 @@ const Pillars = () => {
     };
   }, []);
 
-  // VALIDAZIONE API KEY ALL'AVVIO - Non mostrare più il modal automatico
+  // VALIDAZIONE API KEY ALL'AVVIO - Mostra il modal ogni volta che l'app viene aperta
   useEffect(() => {
     const checkKey = async () => {
       if (!apiKey) {
@@ -2152,15 +2100,18 @@ const Pillars = () => {
               // continue to validate below
             } else {
               setKeyStatus('idle');
+              setShowKeyModal(true);
               return;
             }
           } else {
             // Locked / not decrypted on server
             setKeyStatus('idle');
+            setShowKeyModal(true);
             return;
           }
         } catch (e) {
           setKeyStatus('idle');
+          setShowKeyModal(true);
           return;
         }
       }
@@ -2177,6 +2128,7 @@ const Pillars = () => {
         }
         console.warn("Key validation failed", e);
         setKeyStatus('error');
+        setShowKeyModal(true);
       }
     };
 
@@ -2195,11 +2147,7 @@ const Pillars = () => {
         const cres = await fetch('/api/groq-model-choice');
         if (cres.ok) {
           const j = await cres.json();
-          if (j && j.model) {
-            setSelectedModel(j.model);
-            // set a global fallback for callGroq to pick up immediately
-            try { window.PILLARS_SELECTED_MODEL = j.model; } catch (_) {}
-          }
+          if (j && j.model) setSelectedModel(j.model);
         }
       } catch (e) { /* ignore */ }
     })();
@@ -2365,7 +2313,7 @@ const Pillars = () => {
 
   const handleApiKeyError = () => {
       setKeyStatus('error');
-      // Previously opened a modal for key entry; modal removed per user request
+      setShowKeyModal(true);
   };
 
   // === QUICK ADD AI PROCESSOR ===
@@ -2947,7 +2895,112 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
       
-      {/* API key modal removed - user requested it to not appear */}
+      {/* API KEY MODAL */}
+      {showKeyModal && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
+              <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
+                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
+                  
+                  {keyStatus === 'error' && (
+                      <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
+                          <AlertTriangle size={16}/>
+                          Chiave non valida o password errata.
+                      </div>
+                  )}
+
+                  {keyStatus === 'checking' && (
+                      <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg flex items-center gap-2 text-blue-200 text-xs">
+                          <Loader2 size={16} className="animate-spin"/>
+                          Verifica in corso...
+                      </div>
+                  )}
+
+                  <div className="mb-4">
+                    <label className="text-xs text-slate-400 mb-2 block">Chiave API Groq (sessione):</label>
+                    <input 
+                      id="manual-key"
+                      type="password" 
+                      placeholder="sk-or-..." 
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                      onKeyDown={(e) => {
+                          if(e.key === 'Enter') {
+                              setApiKey(e.target.value);
+                              setShowKeyModal(false);
+                          }
+                      }}
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-xs text-slate-400 mb-2 block">Seleziona modello Groq (opzionale):</label>
+                    <div className="flex gap-2 items-center">
+                      <select value={selectedModel} onChange={e=>setSelectedModel(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-emerald-500 outline-none text-sm">
+                        <option value="">-- usa default --</option>
+                        {models.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch('/api/groq-model-choice', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: selectedModel }) });
+                          if (res.ok) {
+                            setKeyStatus('model_saved');
+                          } else {
+                            const j = await res.json().catch(()=>null);
+                            setKeyStatus('error');
+                            console.warn('Save model failed', j);
+                          }
+                        } catch (e) { console.error(e); setKeyStatus('error'); }
+                      }} className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs">Salva</button>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-2">Consiglio: scegli un modello a cui hai accesso per evitare errori di model_not_found.</div>
+                  </div>
+
+                  <div className="mb-2 text-xs text-slate-400">Oppure usa una chiave già presente sul server (utile per primo avvio locale).</div>
+                  <div className="flex gap-2">
+                    <button 
+                        onClick={() => setShowKeyModal(false)}
+                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors text-xs uppercase"
+                    >
+                        Continua senza AI
+                    </button>
+                    <button 
+                        onClick={async () => {
+                          const manualKey = document.getElementById('manual-key').value;
+                          if (manualKey) {
+                            setApiKey(manualKey);
+                            setKeyStatus('valid');
+                            setShowKeyModal(false);
+                            return;
+                          }
+
+                          // Try loading plaintext key from server (legacy file)
+                          try {
+                            const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                            if (res.ok) {
+                              const j = await res.json();
+                              if (j && j.key) {
+                                setApiKey(j.key);
+                                setKeyStatus('valid');
+                                setShowKeyModal(false);
+                                return;
+                              }
+                            }
+                            const txt = await res.text();
+                            setKeyStatus('error');
+                            console.warn('Load plaintext key failed:', txt);
+                          } catch (e) {
+                            console.error('Load plaintext key error', e);
+                            setKeyStatus('error');
+                          }
+                        }}
+                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
+                    >
+                        Sblocca / Usa chiave server
+                    </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* CLOUD SYNC MODAL */}
       {showCloudModal && (
@@ -3080,10 +3133,9 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
                     <Cpu size={20} className="text-cyan-400" />
                 </button>
-                {/* API key modal removed - key status icon remains */}
-                <div className="p-3 bg-slate-800 rounded-full flex items-center justify-center" title="Stato chiave API" data-no-edit>
+                <button onClick={() => setShowKeyModal(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Configura API Key" data-no-edit>
                   <Key size={20} className={keyStatus === 'valid' ? 'text-emerald-400' : keyStatus === 'checking' ? 'text-blue-400' : keyStatus === 'error' ? 'text-rose-400' : 'text-slate-400'} />
-                </div>
+                </button>
               </div>
             </div>
 
@@ -3096,7 +3148,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                       {t.id === 'health' && <Dumbbell size={20}/>}
                       {t.id === 'brain' && <Brain size={20}/>}
                       {t.id === 'heart' && <Heart size={20}/>}
-                      {t.id === 'items' && <Sparkles size={20}/>}
                   </div>
                   <span className={`text-[9px] uppercase font-bold tracking-wider transition-colors duration-300 ${activeTab === t.id ? 'text-white' : 'text-slate-600 group-hover:text-slate-400'}`}>
                       <EditableText id={`tab_label_${t.id}`} defaultText={t.label} />
@@ -3163,20 +3214,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
         {/* --- MAIN DASHBOARD --- */}
         <div className="lg:col-span-8">
-          {activeTab === 'items' ? (
-            <div className={`h-full bg-slate-900/60 backdrop-blur-xl border ${THEMES.items.border} rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-500 animate-in fade-in zoom-in-[0.99] duration-300`}>
-              <div className="flex justify-between items-start mb-8 relative z-10">
-                <div>
-                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold bg-${THEMES.items.accent}-500/10 text-${THEMES.items.accent}-400 border border-${THEMES.items.accent}-500/20 uppercase mb-3 transition-all`}>OGGETTINI</div>
-                  <h2 className="text-4xl font-bold text-white mb-2 tracking-tight">Oggettini quotidiani</h2>
-                  <p className="text-slate-400 text-sm">Gestione oggettini e accessori</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <DailyItems />
-              </div>
-            </div>
-          ) : activeRoutine ? (
+          {activeRoutine ? (
             <div className={`h-full bg-slate-900/60 backdrop-blur-xl border ${currentTheme.border} rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col transition-colors duration-500 animate-in fade-in zoom-in-[0.99] duration-300`}>
               
               {/* HEADER ROUTINE */}
@@ -3366,6 +3404,9 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
               {/* SPECIAL WIDGETS */}
               <div className={`mt-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeRoutine.tasks?.length > 0 ? 'pt-6 border-t border-slate-800/50' : ''}`}>
                 {renderSpecialWidget()}
+                <div className="mt-6">
+                  <DailyItems />
+                </div>
               </div>
 
             </div>
@@ -3376,7 +3417,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
             </div>
           )}
         </div>
-
       </div>
 
       {/* GLOBAL TEXT EDITOR */}
@@ -3541,6 +3581,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     {/* If the AI indicates a missing API key, show quick actions */}
                     {/API Key|API Key mancante|Chiave/i.test(nexusAnalysis.aiInsight) && (
                       <div className="mt-3 flex gap-2">
+                        <button onClick={() => setShowKeyModal(true)} className="py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs">Configura chiave</button>
                         <button onClick={async () => {
                           try {
                             const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Trash2, Plus } from 'lucide-react';
 import itemsData from '../data/items.json';
 
 const FieldToggle = ({value, onChange, trueLabel='Sì', falseLabel='No'}) => (
@@ -7,7 +8,7 @@ const FieldToggle = ({value, onChange, trueLabel='Sì', falseLabel='No'}) => (
   </button>
 );
 
-const DailyItems = () => {
+const DailyItems = ({ isEditMode = true }) => {
   const [items, setItems] = useState(() => {
     try {
       const raw = localStorage.getItem('daily_items');
@@ -95,20 +96,103 @@ const DailyItems = () => {
     a.href = url; a.download = 'daily_items_export.json'; a.click(); URL.revokeObjectURL(url);
   };
 
+  const addItemDirect = (overrides = {}) => {
+    const newItem = {
+      id: `item-${Date.now()}`,
+      name: overrides.name || 'Nuovo oggettino',
+      connector: overrides.connector || '',
+      magneticMount: !!overrides.magneticMount,
+      base: !!overrides.base,
+      cable: !!overrides.cable,
+      notes: overrides.notes || ''
+    };
+    setItems(prev => [...prev, newItem]);
+  };
+
+  const moveItem = (indexFrom, indexTo) => {
+    setItems(prev => {
+      const arr = [...prev];
+      if (indexTo < 0 || indexTo >= arr.length) return arr;
+      const [item] = arr.splice(indexFrom, 1);
+      arr.splice(indexTo, 0, item);
+      return arr;
+    });
+  };
+
+  // Drag & drop handlers
+  const dragIndex = useRef(null);
+  const handleDragStart = (e, index) => {
+    dragIndex.current = index;
+    try { e.dataTransfer.setData('text/plain', String(index)); } catch (e) {}
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    const from = dragIndex.current != null ? dragIndex.current : parseInt(e.dataTransfer.getData('text/plain') || '', 10);
+    const to = index;
+    if (!Number.isFinite(from) || from === to) return;
+    moveItem(from, to);
+    dragIndex.current = null;
+  };
+
+  // Add / Delete
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', connector: '', magneticMount: false, base: false, cable: false, notes: '' });
+
+  const addItem = (e) => {
+    e && e.preventDefault();
+    if (!newItem.name || !newItem.name.trim()) return alert('Nome richiesto');
+    const id = `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+    const item = { id, ...newItem };
+    setItems(prev => [...prev, item]);
+    setNewItem({ name: '', connector: '', magneticMount: false, base: false, cable: false, notes: '' });
+    setShowAddForm(false);
+  };
+
+  const deleteItem = (id) => {
+    if (!window.confirm('Eliminare questo oggettino?')) return;
+    setItems(prev => prev.filter(it => it.id !== id));
+  };
+
   return (
     <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-sm">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-semibold text-slate-200">Oggettini quotidiani</h4>
         <div className="text-xs text-slate-400">{syncStatus === 'syncing' ? 'Sincronizzazione...' : syncStatus === 'synced' ? 'Salvato sul server' : syncStatus === 'error' ? `Errore: ${syncMessage}` : ''}</div>
         <div className="flex gap-2">
+          {isEditMode && <button onClick={() => setShowAddForm(v => !v)} className="text-xs px-2 py-1 bg-slate-800/40 rounded flex items-center gap-2"><Plus size={14}/> Aggiungi</button>}
           <button onClick={exportJson} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta</button>
           <button onClick={resetDefaults} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Reset</button>
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
-        {items.map(item => (
-          <div key={item.id} className="bg-slate-950/10 p-3 rounded-lg border border-slate-800 flex flex-col gap-2">
+        {isEditMode && showAddForm && (
+          <form onSubmit={addItem} className="bg-slate-950/10 p-3 rounded-lg border border-slate-800 flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input placeholder="Nome" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} className="flex-1 bg-transparent border border-slate-800/40 rounded px-2 py-1 text-xs text-slate-200" />
+              <input placeholder="Connettore" value={newItem.connector} onChange={(e) => setNewItem({...newItem, connector: e.target.value})} className="w-40 bg-transparent border border-slate-800/40 rounded px-2 py-1 text-xs text-slate-200" />
+            </div>
+            <div className="flex items-center gap-2">
+              <FieldToggle value={newItem.magneticMount} onChange={(v) => setNewItem({...newItem, magneticMount: v})} trueLabel={'Magnetico'} falseLabel={'No'} />
+              <FieldToggle value={newItem.base} onChange={(v) => setNewItem({...newItem, base: v})} trueLabel={'Basetta'} falseLabel={'No basetta'} />
+              <FieldToggle value={newItem.cable} onChange={(v) => setNewItem({...newItem, cable: v})} trueLabel={'Cavo'} falseLabel={'No cavo'} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input placeholder="Note" value={newItem.notes} onChange={(e) => setNewItem({...newItem, notes: e.target.value})} className="flex-1 bg-transparent border border-slate-800/40 rounded px-2 py-1 text-xs text-slate-200" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setShowAddForm(false)} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Annulla</button>
+              <button type="submit" className="text-xs px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded">Aggiungi</button>
+            </div>
+          </form>
+        )}
+        {items.map((item, idx) => (
+          <div key={item.id} draggable onDragStart={(e) => handleDragStart(e, idx)} onDragOver={(e) => handleDragOver(e, idx)} onDrop={(e) => handleDrop(e, idx)} className="bg-slate-950/10 p-3 rounded-lg border border-slate-800 flex flex-col gap-2 cursor-grab">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-white">{item.name}</div>
@@ -118,6 +202,13 @@ const DailyItems = () => {
                 <FieldToggle value={!!item.magneticMount} onChange={(v) => updateItem(item.id, { magneticMount: v })} trueLabel={'Magnetico'} falseLabel={'No'} />
                 <FieldToggle value={!!item.base} onChange={(v) => updateItem(item.id, { base: v })} trueLabel={'Basetta'} falseLabel={'No basetta'} />
                 <FieldToggle value={!!item.cable} onChange={(v) => updateItem(item.id, { cable: v })} trueLabel={'Cavo'} falseLabel={'No cavo'} />
+                {isEditMode && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => moveItem(idx, idx - 1)} disabled={idx === 0} title="Sposta su" className="text-xs px-2 py-1 bg-slate-800/30 rounded">▲</button>
+                    <button onClick={() => moveItem(idx, idx + 1)} disabled={idx === items.length - 1} title="Sposta giù" className="text-xs px-2 py-1 bg-slate-800/30 rounded">▼</button>
+                    <button onClick={() => deleteItem(item.id)} title="Elimina" className="p-2 text-red-400 hover:bg-red-400/10 rounded-full"><Trash2 size={14} /></button>
+                  </div>
+                )}
               </div>
             </div>
 
