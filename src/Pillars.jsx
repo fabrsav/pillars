@@ -2811,9 +2811,7 @@ ESEMPIO: {"task": "Revisiona appunti di ieri", "reason": "Consolida la memoria a
       if (r.status === 'Completato' || r.status === 'Annullato') return false;
       return r.status === 'Da Fare' || r.status === 'Richiesto';
     });
-    const totalRefundValue = refundsData
-      .filter(r => r.status !== 'Completato' && r.status !== 'Annullato')
-      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const totalRefundValue = getActiveRefundsTotal(refundsData);
     
     // ===== 4. BUILD GOAL-ORIENTED PROMPT =====
     const goalsContext = pillars.map(p => {
