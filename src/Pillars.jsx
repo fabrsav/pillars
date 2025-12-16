@@ -112,7 +112,10 @@ export const CLOSED_REFUND_STATUSES = ['Rimborsato', 'Assistenza', 'Completato',
 export const getActiveRefundsTotal = (refundsList = []) => {
   return (refundsList || [])
     .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status))
-    .reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+    .reduce((acc, r) => {
+      const v = parseFloat(r?.amount);
+      return acc + (Number.isFinite(v) ? v : 0);
+    }, 0);
 };
 
 // --- CONFIGURAZIONE GROQ API ---
@@ -642,8 +645,8 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold ${theme.text}`}>€{totalPotential.toFixed(2)}</span>
-        </div>
+          <span className={`text-xs font-bold ${theme.text}`}>€{Number.isFinite(totalPotential) ? totalPotential.toFixed(2) : '0.00'}</span>
+        </div> 
       </div>
 
       {/* LISTA RIMBORSI */}
@@ -2845,7 +2848,7 @@ ESEMPIO: {"task": "Revisiona appunti di ieri", "reason": "Consolida la memoria a
 
     const extraContext = [];
     if (urgentRefunds.length > 0) {
-      extraContext.push(`RIMBORSI ATTIVI: ${urgentRefunds.length} pratiche, €${totalRefundValue.toFixed(2)} in ballo`);
+      extraContext.push(`RIMBORSI ATTIVI: ${urgentRefunds.length} pratiche, €${Number.isFinite(totalRefundValue) ? totalRefundValue.toFixed(2) : '0.00'} in ballo`);
     }
     if (garminData?.steps) {
       extraContext.push(`GARMIN: ${garminData.steps} passi, ${garminData.calories || '?'} kcal`);
