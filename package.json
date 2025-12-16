@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "parse-anki": "node scripts/parse_anki_pdf.js",
     "build:ico": "node ./tools/build-ico.js",
-    "test": "vitest"
+    "test": "vitest",
+    "audit:branches": "node scripts/list-stale-branches.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
