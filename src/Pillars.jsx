@@ -70,7 +70,31 @@ const useStorage = (key, initialValue) => {
       })
       .then(data => {
         console.log(`[useStorage] ${key} data received:`, data);
-        if (data !== null) setValue(data);
+        if (data !== null) {
+          // Merge received data with current value to avoid accidental wiping of defaults
+          setValue(prev => {
+            try {
+              if (prev && typeof prev === 'object' && typeof data === 'object') {
+                const merged = { ...prev };
+                for (const k of Object.keys(data)) {
+                  const v = data[k];
+                  if (Array.isArray(v)) {
+                    // If server array is empty, ignore it to avoid wiping local defaults
+                    if (v.length > 0) merged[k] = v;
+                  } else if (v !== null && typeof v === 'object') {
+                    merged[k] = { ...(merged[k] || {}), ...v };
+                  } else {
+                    merged[k] = v;
+                  }
+                }
+                return merged;
+              }
+            } catch (e) {
+              console.warn('[useStorage] merge failed, falling back to server data', e);
+            }
+            return data;
+          });
+        }
         setLoaded(true);
       })
       .catch(err => {
