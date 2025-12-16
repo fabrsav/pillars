@@ -48,7 +48,7 @@ import {
   Scissors, Smile, Wind, Plus, Trash2, X, GripVertical, ArrowDownUp,
   Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock,
   School, Calendar, BookMarked, ShoppingBag, Mail, AlertCircle, Receipt,
-  Package, CalendarClock, PhoneCall, Key, LogIn, Eye, EyeOff, FileHeart,
+  Package, CalendarClock, PhoneCall, LogIn, Eye, EyeOff, FileHeart,
   Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
 } from 'lucide-react';
 
@@ -700,7 +700,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                         <Mail size={10}/> {r.email || '-'}
                         {r.password && (
                           <div className="flex items-center gap-1 ml-2 cursor-pointer hover:text-white" onClick={() => togglePassVisibility(r.id)}>
-                            <Key size={10}/> {showPassword[r.id] ? r.password : '••••'}
+                            {showPassword[r.id] ? r.password : '••••'}
                           </div>
                         )}
                       </div>
