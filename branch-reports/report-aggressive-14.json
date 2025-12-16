@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-16T11:11:06.156Z",
+  "generatedAt": "2025-12-16T11:11:23.128Z",
   "patterns": [
     "wip",
     "merge",
@@ -10,9 +10,290 @@
     "autopush"
   ],
   "thresholdDays": 14,
-  "remoteCount": 0,
-  "localCount": 0,
-  "flagged": [],
-  "remoteResults": [],
-  "localResults": []
+  "remoteCount": 11,
+  "localCount": 5,
+  "flagged": [
+    {
+      "ref": "origin/wip/refund-manager-refactor",
+      "short": "wip/refund-manager-refactor",
+      "date": "2025-12-16 08:49:39 +0100",
+      "sha": "fa8349e57e528c52e7df32790217bc06516508e0",
+      "ageDays": 0,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "wip"
+      ]
+    },
+    {
+      "ref": "origin/integration/merge-all-branches-2025-12-12",
+      "short": "integration/merge-all-branches-2025-12-12",
+      "date": "2025-12-12 17:56:38 +0000",
+      "sha": "e8404140f672ba3be481976fa5ae99658b876744",
+      "ageDays": 4,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/merge/wip-squash-clean",
+      "short": "merge/wip-squash-clean",
+      "date": "2025-12-12 17:45:32 +0000",
+      "sha": "558b701173132b30ce05461aa3c8cf046d5b5f61",
+      "ageDays": 4,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "wip",
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/merge/wip-squash-from-main",
+      "short": "merge/wip-squash-from-main",
+      "date": "2025-12-12 15:04:06 +0000",
+      "sha": "e4efee0e8033bdec3574d909811d456a051cb411",
+      "ageDays": 4,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "wip",
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/copilot/remove-api-key-request",
+      "short": "copilot/remove-api-key-request",
+      "date": "2025-12-10 23:13:00 +0000",
+      "sha": "cb6c4facd5472da8e9067a6c5379ebc8f014156c",
+      "ageDays": 5,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/change-encryption-password",
+      "short": "copilot/change-encryption-password",
+      "date": "2025-12-10 22:57:50 +0000",
+      "sha": "22ad4e79158e6980e4e3e4aa4a65c2c701580267",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/fix-groq-api-issues",
+      "short": "copilot/fix-groq-api-issues",
+      "date": "2025-12-10 22:50:39 +0000",
+      "sha": "14fb7e01587e6714fde78ec953a24b35b3b78fd8",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/adapt-mobile-screen-display",
+      "short": "copilot/adapt-mobile-screen-display",
+      "date": "2025-12-10 22:43:44 +0000",
+      "sha": "5bd4538dec16912b83e2316c942053ec6a38cc99",
+      "ageDays": 6,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    }
+  ],
+  "remoteResults": [
+    {
+      "ref": "origin/chore/restructure-proposal",
+      "short": "chore/restructure-proposal",
+      "date": "2025-12-16 12:11:11 +0100",
+      "sha": "f9593d9aa58546e73154bda8984dfcc826901a51",
+      "ageDays": 0,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": []
+    },
+    {
+      "ref": "origin/wip/refund-manager-refactor",
+      "short": "wip/refund-manager-refactor",
+      "date": "2025-12-16 08:49:39 +0100",
+      "sha": "fa8349e57e528c52e7df32790217bc06516508e0",
+      "ageDays": 0,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "wip"
+      ]
+    },
+    {
+      "ref": "origin/main",
+      "short": "main",
+      "date": "2025-12-12 18:27:02 +0000",
+      "sha": "7416b480fb9987e1e0e216eaab5a94a57ce6005f",
+      "ageDays": 4,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": []
+    },
+    {
+      "ref": "origin/integration/merge-all-branches-2025-12-12",
+      "short": "integration/merge-all-branches-2025-12-12",
+      "date": "2025-12-12 17:56:38 +0000",
+      "sha": "e8404140f672ba3be481976fa5ae99658b876744",
+      "ageDays": 4,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/merge/wip-squash-clean",
+      "short": "merge/wip-squash-clean",
+      "date": "2025-12-12 17:45:32 +0000",
+      "sha": "558b701173132b30ce05461aa3c8cf046d5b5f61",
+      "ageDays": 4,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "wip",
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/merge/wip-squash-from-main",
+      "short": "merge/wip-squash-from-main",
+      "date": "2025-12-12 15:04:06 +0000",
+      "sha": "e4efee0e8033bdec3574d909811d456a051cb411",
+      "ageDays": 4,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "wip",
+        "merge"
+      ]
+    },
+    {
+      "ref": "origin/copilot/remove-api-key-request",
+      "short": "copilot/remove-api-key-request",
+      "date": "2025-12-10 23:13:00 +0000",
+      "sha": "cb6c4facd5472da8e9067a6c5379ebc8f014156c",
+      "ageDays": 5,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/change-encryption-password",
+      "short": "copilot/change-encryption-password",
+      "date": "2025-12-10 22:57:50 +0000",
+      "sha": "22ad4e79158e6980e4e3e4aa4a65c2c701580267",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/fix-groq-api-issues",
+      "short": "copilot/fix-groq-api-issues",
+      "date": "2025-12-10 22:50:39 +0000",
+      "sha": "14fb7e01587e6714fde78ec953a24b35b3b78fd8",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/copilot/adapt-mobile-screen-display",
+      "short": "copilot/adapt-mobile-screen-display",
+      "date": "2025-12-10 22:43:44 +0000",
+      "sha": "5bd4538dec16912b83e2316c942053ec6a38cc99",
+      "ageDays": 6,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": [
+        "copilot"
+      ]
+    },
+    {
+      "ref": "origin/feature/groq-key-setup-clean",
+      "short": "feature/groq-key-setup-clean",
+      "date": "2025-12-10 23:28:03 +0100",
+      "sha": "bbfc8e771fd8c056e8443ae1e104f319f9addc23",
+      "ageDays": 6,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": []
+    }
+  ],
+  "localResults": [
+    {
+      "ref": "chore/restructure-proposal",
+      "short": "chore/restructure-proposal",
+      "date": "2025-12-16 12:11:11 +0100",
+      "sha": "f9593d9aa58546e73154bda8984dfcc826901a51",
+      "ageDays": 0,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": []
+    },
+    {
+      "ref": "wip/refund-manager-refactor",
+      "short": "wip/refund-manager-refactor",
+      "date": "2025-12-16 08:49:39 +0100",
+      "sha": "fa8349e57e528c52e7df32790217bc06516508e0",
+      "ageDays": 0,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": [
+        "wip"
+      ]
+    },
+    {
+      "ref": "feature/groq-key-setup-clean",
+      "short": "feature/groq-key-setup-clean",
+      "date": "2025-12-10 23:28:03 +0100",
+      "sha": "bbfc8e771fd8c056e8443ae1e104f319f9addc23",
+      "ageDays": 6,
+      "mergedToMain": true,
+      "prs": [],
+      "patternsMatched": []
+    },
+    {
+      "ref": "feature/groq-key-setup",
+      "short": "feature/groq-key-setup",
+      "date": "2025-12-10 23:21:40 +0100",
+      "sha": "7c2bfbab4a4a13c1c2d17d91405925154ebea764",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": []
+    },
+    {
+      "ref": "main",
+      "short": "main",
+      "date": "2025-12-10 23:21:40 +0100",
+      "sha": "7c2bfbab4a4a13c1c2d17d91405925154ebea764",
+      "ageDays": 6,
+      "mergedToMain": false,
+      "prs": [],
+      "patternsMatched": []
+    }
+  ]
 }
