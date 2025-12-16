@@ -750,29 +750,40 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
   };
 
   const archiveRefund = async (id) => {
+    // Open in-app modal instead of browser confirm/prompt
     const target = refunds.find(r => r.id === id);
     if (!target) return;
-    if (!confirm(`Sei sicuro di archiviare "${target.item}"?`)) return;
     const todayISO = new Date().toISOString().split('T')[0];
-    const refundDate = prompt('Data rimborso (YYYY-MM-DD):', target.arrivalDate || todayISO);
-    if (refundDate === null) return; // cancelled
+    setArchiveModal({ open: true, target, refundDate: target.arrivalDate || todayISO });
+  };
+
+  const confirmArchive = async () => {
+    const { target, refundDate } = archiveModal;
+    if (!target) { setArchiveModal({ open: false, target: null, refundDate: '' }); return; }
     const archiveRecord = { ...target, archivedAt: new Date().toISOString(), refundDate };
 
     try {
+      // always update local archived state so UI has immediate control (and unarchive is possible)
       if (typeof setArchivedRefunds === 'function') {
         setArchivedRefunds(prev => [...(prev || []), archiveRecord]);
-      } else {
-        // fallback: save directly to server
-        await saveArchivedRecordToServer(archiveRecord);
       }
-    } catch (e) {
-      console.error('archiveRefund setArchivedRefunds failed', e);
-      // attempt server save as fallback
+      // attempt to persist to server as well
       await saveArchivedRecordToServer(archiveRecord);
+    } catch (e) {
+      console.error('archiveConfirm failed', e);
+      // still continue: state is updated locally
     }
 
-    setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: true, refundDate, history: [{ id: Date.now(), text: `Archiviato il ${refundDate}`, status: r.status, summary: 'Archiviato', timestamp: refundDate }, ...(r.history||[])] } : r));
-    alert('Rimborso archiviato.');
+    // mark main refund as archived and add history entry
+    setRefunds(prev => prev.map(r => r.id === target.id ? { ...r, archived: true, refundDate, history: [{ id: Date.now(), text: `Archiviato il ${refundDate}`, status: r.status, summary: 'Archiviato', timestamp: refundDate }, ...(r.history||[])] } : r));
+
+    setArchiveModal({ open: false, target: null, refundDate: '' });
+    setToastMessage('Rimborso archiviato.');
+    setTimeout(() => setToastMessage(null), 2200);
+  };
+
+  const cancelArchive = () => {
+    setArchiveModal({ open: false, target: null, refundDate: '' });
   };
   const togglePassVisibility = (id) => setShowPassword(prev => ({...prev, [id]: !prev[id]}));
 
