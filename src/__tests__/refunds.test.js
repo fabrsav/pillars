@@ -14,6 +14,16 @@ describe('getActiveRefundsTotal', () => {
     expect(total).toBeCloseTo(15.00, 2);
   });
 
+  it('ignores archived refunds', () => {
+    const refunds = [
+      { id: 1, status: 'Da Fare', amount: '10.00' },
+      { id: 2, status: 'Da Fare', amount: '5.00' },
+      { id: 3, status: 'Rimborsato', amount: '100', archived: true }
+    ];
+    const total = getActiveRefundsTotal(refunds);
+    expect(total).toBeCloseTo(15.00, 2);
+  });
+
   it('handles missing or invalid amounts gracefully', () => {
     const refunds = [
       { id: 1, status: 'Da Fare', amount: 'abc' },
