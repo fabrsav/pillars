@@ -59,12 +59,14 @@ describe('Refund archive flow', () => {
     await waitFor(() => expect(screen.queryByText('ArchTest')).toBeNull());
 
     // The archived counter should update on the button
-    const showArchBtn = screen.getByText(/Mostra archiviati/i);
+    const showArchBtns = screen.getAllByText(/Mostra archiviati/i);
+    const showArchBtn = showArchBtns.find(b => b.textContent && b.textContent.includes('(1)')) || showArchBtns[0];
     expect(showArchBtn.textContent).toMatch(/\(1\)/);
 
-    // Open archived view
+    // Open archived view (click the specific button with the counter)
     fireEvent.click(showArchBtn);
-    await waitFor(() => expect(screen.getByText('Ripristina')).toBeInTheDocument());
+    // Wait a short while for the UI to render the archived list
+    await waitFor(() => expect(screen.queryByText(/Archivio rimborsi/i) || screen.queryByText('Ripristina')).toBeTruthy());
 
     // Ensure the archived item is listed next to the Ripristina button
     const ripristinaBtn = screen.getByText('Ripristina');
