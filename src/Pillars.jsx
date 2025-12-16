@@ -845,20 +845,20 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               })}
 
               {showArchived && (
-                <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/20">
-                  <h6 className="text-sm font-bold mb-2">Archivio rimborsi ({(archivedRefunds || []).length})</h6>
+                <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/10">
+                  <h6 className="text-base font-bold mb-3">Archivio rimborsi <span className="text-slate-400 text-sm">({(archivedRefunds || []).length})</span></h6>
                   {(archivedRefunds || []).length === 0 ? (
                     <div className="text-sm text-slate-400">Archivio vuoto</div>
                   ) : (
                     (archivedRefunds || []).map(a => (
-                      <div key={a.id} className="flex justify-between items-center py-2 border-b border-slate-800">
+                      <div key={a.id} className="flex justify-between items-center py-3 border-b border-slate-800">
                         <div>
-                          <div className="text-sm font-bold">{a.item}</div>
-                          <div className="text-xs text-slate-400">Rimborsato: {a.refundDate} • Archivio: {a.archivedAt && a.archivedAt.split('T')[0]}</div>
+                          <div className="text-white text-sm font-semibold">{a.item}</div>
+                          <div className="text-xs text-slate-400 mt-1">Rimborsato: {a.refundDate} • Archivio: {a.archivedAt && a.archivedAt.split('T')[0]}</div>
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => unarchiveRefund(a.id)} className="text-slate-600 hover:text-emerald-400">Ripristina</button>
-                          <a href={`/api/store/pillars_refunds_archive_v1`} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-amber-400">Apri archivio</a>
+                        <div className="flex gap-3">
+                          <button onClick={() => unarchiveRefund(a.id)} className="text-slate-300 hover:text-emerald-400 bg-slate-800/30 px-3 py-1 rounded">Ripristina</button>
+                          <a href={`/api/store/pillars_refunds_archive_v1`} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-amber-400 bg-slate-800/30 px-3 py-1 rounded">Apri archivio</a>
                         </div>
                       </div>
                     ))
@@ -867,6 +867,17 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               )}
                       </div>
                       <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+                    </div>
+
+                    {/* Archive/Actions */}
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="text-xs text-slate-400">{r.refundDate && <>💶 Rimborsato: {r.refundDate}</>}</div>
+                      <div className="flex items-center gap-4">
+                        {!r.archived && r.status === 'Rimborsato' && (
+                          <button onClick={() => archiveRefund(r.id)} className="text-slate-300 hover:text-amber-400 bg-slate-800/30 px-2 py-1 rounded">Archivia</button>
+                        )}
+                        <button onClick={() => handleEdit(r)} className="text-slate-500 hover:text-white">Modifica</button>
+                      </div>
                     </div>
 
                     {/* Tracking e codici ritiro */}
