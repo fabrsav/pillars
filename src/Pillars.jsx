@@ -1397,6 +1397,9 @@ RISPONDI con JSON:
           <button onClick={() => setActiveView('projects')} className={`p-1.5 rounded-md transition-all ${activeView==='projects' || activeView==='project_detail'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Progetti"><Rocket size={14}/></button>
           <button onClick={() => setActiveView('ideas')} className={`p-1.5 rounded-md transition-all ${activeView==='ideas'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Idee"><Lightbulb size={14}/></button>
           <button onClick={() => setActiveView('upload')} className={`p-1.5 rounded-md transition-all ${activeView==='upload' || activeView==='web_analysis'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Analisi Chat"><RefreshCw size={14}/></button>
+
+          {/* Quick access to Oggettini */}
+          <button onClick={() => { setActiveTab('wealth'); setActiveRoutineId('daily_items'); }} className={`p-1.5 rounded-md transition-all ${activeRoutineId==='daily_items' ? 'bg-pink-500/20 text-pink-400' : 'text-slate-500 hover:text-slate-300'}`} title="Oggettini"><Package size={14}/></button>
         </div>
       </div>
 

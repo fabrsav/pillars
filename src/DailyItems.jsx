@@ -194,11 +194,20 @@ const DailyItems = ({ isEditMode = true }) => {
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-semibold text-slate-200">Oggettini quotidiani</h4>
         <div className="text-xs text-slate-400">{syncStatus === 'syncing' ? 'Sincronizzazione...' : syncStatus === 'synced' ? 'Salvato sul server' : syncStatus === 'error' ? `Errore: ${syncMessage}` : ''}</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 relative">
           {isEditMode && <button onClick={() => setShowAddForm(v => !v)} className="text-xs px-2 py-1 bg-slate-800/40 rounded flex items-center gap-2"><Plus size={14}/> Aggiungi</button>}
-          <button onClick={exportJson} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta</button>
-          <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Importa</button>
-          <button onClick={resetDefaults} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Reset</button>
+
+          <div className="relative">
+            <button onClick={() => setMenuOpen(v => !v)} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Altro ▾</button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-44 bg-slate-900 border border-slate-800 rounded shadow-lg p-2 z-20">
+                <button onClick={() => { exportJson(); setMenuOpen(false); }} className="w-full text-left text-xs px-2 py-1 hover:bg-slate-800/30 rounded">Esporta</button>
+                <button onClick={() => { fileInputRef.current?.click(); setMenuOpen(false); }} className="w-full text-left text-xs px-2 py-1 hover:bg-slate-800/30 rounded">Importa</button>
+                <button onClick={() => { resetDefaults(); setMenuOpen(false); }} className="w-full text-left text-xs px-2 py-1 hover:bg-slate-800/30 rounded">Reset</button>
+              </div>
+            )}
+          </div>
+
           <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={importFromFile} />
         </div>
       </div>
