@@ -24,13 +24,33 @@ export default function AnkiStats() {
     } finally { setLoading(false); }
   };
 
+  const syncFromAnkiConnect = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/anki-connect/sync', { method: 'POST' });
+      if (res.ok) {
+        const j = await res.json();
+        // reload from persisted file
+        await load();
+        return j.result;
+      }
+      throw new Error('Sync failed');
+    } catch (e) {
+      console.error(e);
+      alert('Impossibile connettersi a AnkiConnect. Assicurati che Anki sia aperto e AnkiConnect installato.');
+    } finally { setLoading(false); }
+  };
+
   const latest = stats && stats.length > 0 ? stats[0] : null;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold">Statistiche Anki</div>
-        <button onClick={triggerParse} disabled={loading} className="bg-slate-800 px-3 py-2 rounded">{loading ? 'Parsing...' : 'Aggiorna'}</button>
+        <div className="flex gap-2">
+          <button onClick={triggerParse} disabled={loading} className="bg-slate-800 px-3 py-2 rounded">{loading ? 'Parsing...' : 'Aggiorna'}</button>
+          <button onClick={syncFromAnkiConnect} disabled={loading} className="bg-indigo-700 px-3 py-2 rounded">{loading ? 'Connessione...' : 'Sync da Anki'}</button>
+        </div>
       </div>
 
       {latest ? (

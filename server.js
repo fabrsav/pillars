@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { fetchRecentEmails } from './scripts/matched_betting_mail.js';
+import fetch from 'node-fetch';
 import { parseDir as parseAnkiDir } from './scripts/parse_anki_pdf.js';
 
 // Load environment variables from .env if present
@@ -437,6 +438,79 @@ app.post('/api/exams', requireAuth, (req, res) => {
   } catch (e) {
     console.error('[/api/exams POST] Error:', e);
     return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// POST to persist anki stats (body should be an array of stats)
+app.post('/api/anki-stats', requireAuth, (req, res) => {
+  try {
+    const body = req.body || {};
+    const f = path.join(DB_DIR, 'anki_stats.json');
+    fs.writeFileSync(f, JSON.stringify(body.stats || body, null, 2), 'utf8');
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[/api/anki-stats POST] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Helper: call AnkiConnect
+const ANKI_CONNECT_DEFAULT = 'http://localhost:8765';
+async function callAnkiConnect(action, params = {}) {
+  const body = { action, version: 6, params };
+  const r = await fetch(process.env.ANKI_CONNECT_URL || ANKI_CONNECT_DEFAULT, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  return r.json();
+}
+
+// Check AnkiConnect reachable
+app.post('/api/anki-connect/check', async (req, res) => {
+  try {
+    const ping = await callAnkiConnect('version');
+    if (!ping || ping.error) return res.status(500).json({ ok: false, error: ping && ping.error });
+    return res.json({ ok: true, version: ping });
+  } catch (e) {
+    console.error('[/api/anki-connect/check] Error:', e.message || e);
+    return res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+});
+
+// Perform a basic sync: collect deck names and counts (new/due)
+app.post('/api/anki-connect/sync', async (req, res) => {
+  try {
+    // deck names
+    const decksRes = await callAnkiConnect('deckNames');
+    const deckNames = Array.isArray(decksRes) ? decksRes : [];
+
+    // new cards
+    const newCardsRes = await callAnkiConnect('findCards', { query: 'is:new' });
+    const newCount = Array.isArray(newCardsRes) ? newCardsRes.length : 0;
+
+    // due cards
+    const dueCardsRes = await callAnkiConnect('findCards', { query: 'is:due' });
+    const dueCount = Array.isArray(dueCardsRes) ? dueCardsRes.length : 0;
+
+    // sample: get info for first few due cards
+    let sample = [];
+    if (Array.isArray(dueCardsRes) && dueCardsRes.length > 0) {
+      const slice = dueCardsRes.slice(0, 20);
+      const info = await callAnkiConnect('cardsInfo', { cards: slice });
+      sample = info || [];
+    }
+
+    const result = { timestamp: new Date().toISOString(), decks: deckNames, newCount, dueCount, sample };
+
+    // Persist as top entry in anki_stats.json
+    try {
+      const f = path.join(DB_DIR, 'anki_stats.json');
+      const existing = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : [];
+      const all = [result, ...existing];
+      fs.writeFileSync(f, JSON.stringify(all, null, 2), 'utf8');
+    } catch (e) { console.warn('Failed to persist anki stats:', e.message || e); }
+
+    return res.json({ success: true, result });
+  } catch (e) {
+    console.error('[/api/anki-connect/sync] Error:', e.message || e);
+    return res.status(500).json({ error: 'internal_error', message: e.message || String(e) });
   }
 });
 
