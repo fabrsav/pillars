@@ -22,6 +22,7 @@ const DailyItems = ({ isEditMode = true }) => {
   const [syncMessage, setSyncMessage] = useState('');
   const [serverEmpty, setServerEmpty] = useState(false);
   const fileInputRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const pendingSave = useRef(false);
   const saveTimeout = useRef(null);
 
