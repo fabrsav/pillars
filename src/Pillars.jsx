@@ -32,6 +32,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import FabricConfigurator from './FabricConfigurator';
+import MatchedBettingLogin from './MatchedBettingLogin';
 import DailyItems from './DailyItems';
 import DeadlineCountdown from './DeadlineCountdown';
 import ExamCountdown from './ExamCountdown';
@@ -1604,6 +1605,9 @@ RISPONDI con JSON:
                     <button onClick={() => checkOffers(30)} disabled={checkingOffers} className="text-[11px] px-2 py-1 rounded bg-indigo-700/10 text-indigo-300 hover:bg-indigo-700/20 transition-all">
                       30gg
                     </button>
+                    <div className="ml-2">
+                      <MatchedBettingLogin onConnected={(email)=>{ /* optionally re-check offers */ }} />
+                    </div>
                   </div>
                 )}
             </div>
