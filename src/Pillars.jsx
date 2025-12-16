@@ -188,6 +188,28 @@ export const getActiveRefundsTotal = (refundsList = []) => {
     }, 0);
 };
 
+// Apply updates from AI or user to an existing refund object and return the updated refund
+export const applyRefundUpdates = (r = {}, updates = {}, historyEntry = null) => {
+  // parse amount if present
+  let newAmount = r.amount;
+  if (updates.amount !== undefined && updates.amount !== null && updates.amount !== '') {
+    const parsed = parseFloat(updates.amount);
+    if (!Number.isNaN(parsed)) newAmount = parsed;
+  }
+
+  return {
+    ...r,
+    amount: newAmount,
+    status: updates.status || r.status,
+    arrivalDate: updates.arrivalDate || r.arrivalDate,
+    requestDate: updates.requestDate || r.requestDate,
+    notes: updates.notes ? (r.notes ? r.notes + ' | ' + updates.notes : updates.notes) : r.notes,
+    trackingCode: updates.trackingCode || r.trackingCode || '',
+    pickupCode: updates.pickupCode || r.pickupCode || '',
+    history: historyEntry ? [historyEntry, ...(r.history || [])] : r.history
+  };
+};
+
 // --- CONFIGURAZIONE GROQ API ---
 // NOTE: Sempre forzare `groq/compound` come unico modello utilizzato.
 const MODEL_FAST = 'groq/compound';
@@ -519,19 +541,17 @@ RISPONDI SOLO con questo JSON (nessun altro testo):
           timestamp: todayISO
         };
         
+        let updatedRefund = null;
         setRefunds(prev => prev.map((r, idx) => {
           if (idx !== parsed.matchedRefundIndex) return r;
-          return {
-            ...r,
-            status: updates.status || r.status,
-            arrivalDate: updates.arrivalDate || r.arrivalDate,
-            requestDate: updates.requestDate || r.requestDate,
-            notes: updates.notes ? (r.notes ? r.notes + ' | ' + updates.notes : updates.notes) : r.notes,
-            trackingCode: updates.trackingCode || r.trackingCode || '',
-            pickupCode: updates.pickupCode || r.pickupCode || '',
-            history: [historyEntry, ...(r.history || [])]
-          };
+          updatedRefund = applyRefundUpdates(r, updates, historyEntry);
+          return updatedRefund;
         }));
+
+        // If the user is editing this refund right now, sync the edit form state
+        if (newRefund?.id === updatedRefund?.id && updatedRefund) {
+          setNewRefund(updatedRefund);
+        }
         
         alert(`✅ Aggiornato: "${targetRefund.item}" (${targetRefund.platform})\n\n${parsed.reasoning}`);
         
@@ -579,7 +599,7 @@ RISPONDI SOLO con questo JSON (nessun altro testo):
 
     const prompt = `Sei un assistente che legge aggiornamenti di assistenza clienti e ne estrae i metadati.
 Rispondi SOLO con JSON valido, niente testo aggiuntivo.
-Formato desiderato:\n{\n  "status": "uno tra: Da Fare, Richiesto, Spedito, Rimborsato, Assistenza, In Attesa Amazon, Altro",\n  "notes": "breve riassunto dell'aggiornamento",\n  "requestDate": "YYYY-MM-DD o vuoto",\n  "arrivalDate": "YYYY-MM-DD o vuoto",\n  "trackingCode": "codice tracking/spedizione se presente, altrimenti vuoto",\n  "pickupCode": "codice ritiro se presente (es. locker, punto ritiro), altrimenti vuoto",\n  "summary": "una riga riassuntiva corta"\n}\n
+Formato desiderato:\n{\n  "status": "uno tra: Da Fare, Richiesto, Spedito, Rimborsato, Assistenza, In Attesa Amazon, Altro",\n  "notes": "breve riassunto dell'aggiornamento",\n  "amount": "numero (es. 10.87) se l'importo è menzionato, altrimenti vuoto",\n  "requestDate": "YYYY-MM-DD o vuoto",\n  "arrivalDate": "YYYY-MM-DD o vuoto",\n  "trackingCode": "codice tracking/spedizione se presente, altrimenti vuoto",\n  "pickupCode": "codice ritiro se presente (es. locker, punto ritiro), altrimenti vuoto",\n  "summary": "una riga riassuntiva corta"\n}\n
 Testo da analizzare: """${text}"""\n`;
 
     try {
@@ -607,6 +627,7 @@ Testo da analizzare: """${text}"""\n`;
           ...r,
           status: parsed.status || r.status,
           notes: parsed.notes || r.notes || '',
+          amount: (parsed.amount !== undefined && parsed.amount !== null && parsed.amount !== '') ? parseFloat(parsed.amount) : r.amount,
           requestDate: parsed.requestDate || r.requestDate,
           arrivalDate: parsed.arrivalDate || r.arrivalDate,
           trackingCode: parsed.trackingCode || r.trackingCode || '',
