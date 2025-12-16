@@ -2248,6 +2248,7 @@ const Pillars = () => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [activityLog, setActivityLog] = useStorage('pillars_activity_log', []);
   const [refunds, setRefunds, refundsLoaded] = useStorage('pillars_refunds_v3', []);
+  const [holidayEnabled, setHolidayEnabled] = useStorage('holiday_theme_enabled', false);
   
   // === GOALS SYSTEM - Obiettivi a lungo termine per ogni pillar ===
   const [goals, setGoals] = useStorage('pillars_goals', {
