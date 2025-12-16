@@ -831,7 +831,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
           ) : (
             <div className="space-y-3">
-              {(refunds || []).map((r) => {
+              {(refunds || []).filter(r => !r.archived).map((r) => {
                 const daysLeft = getDaysLeft(r.arrivalDate);
                 const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
                 
@@ -841,7 +841,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
-                        <h5 className="text-sm font-bold text-white">{r.item} {r.archived && <span className="text-[10px] text-amber-400 ml-2">Archiv.</span>}</h5> 
+                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
               })}
 
               {showArchived && (
