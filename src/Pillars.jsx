@@ -3184,6 +3184,9 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                   <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
                   <School size={20} className="text-indigo-400" />
                 </button>
+                <button onClick={() => setHolidayEnabled(prev => !prev)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Tema natalizio" data-no-edit>
+                  <Gift size={20} className={holidayEnabled ? 'text-red-400' : 'text-slate-400'} />
+                </button>
                 {/* API key modal removed */}
               </div>
             </div>
@@ -3228,6 +3231,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     onDrop={(e) => handleDrop(e, 'routine', index)}
                     className="relative group transition-all duration-300 ease-out hover:translate-x-1"
                   >
+                    {holidayEnabled && <SantaHat />}
                     <div className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 ${activeRoutineId === r.id ? `bg-gradient-to-r from-slate-800 to-slate-900 border-${currentTheme.accent}-500/50 text-white shadow-lg` : 'bg-transparent border-transparent hover:bg-slate-800/30 text-slate-400'}`}>
                       <button 
                         onClick={() => setActiveRoutineId(r.id)}
