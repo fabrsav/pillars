@@ -64,3 +64,52 @@ body {
 .nexus-glow {
   animation: nexusGlow 2.5s ease-in-out infinite;
 }
+
+/* Christmas theme styles */
+.snowfall {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+}
+.snowflake {
+  position: absolute;
+  top: -10%;
+  color: #fff;
+  font-size: 12px;
+  opacity: 0.95;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  animation: fall linear infinite;
+}
+
+@keyframes fall {
+  0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0.9; }
+  50% { transform: translateY(50vh) translateX(10vw) rotate(180deg); opacity: 0.95; }
+  100% { transform: translateY(110vh) translateX(-10vw) rotate(360deg); opacity: 0.9; }
+}
+
+/* Subtle hat decoration */
+.santa-hat {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  width: 32px;
+  height: 20px;
+  transform-origin: center center;
+  animation: hatWiggle 3s ease-in-out infinite;
+  z-index: 30;
+  pointer-events: none;
+}
+
+@keyframes hatWiggle {
+  0%,100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .snowflake { animation: none; }
+  .santa-hat { animation: none; }
+}
