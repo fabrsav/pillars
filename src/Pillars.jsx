@@ -36,6 +36,8 @@ import DailyItems from './DailyItems';
 import DeadlineCountdown from './DeadlineCountdown';
 import ExamCountdown from './ExamCountdown';
 import AnkiStats from './AnkiStats';
+import Snowfall from './Snowfall';
+import SantaHat from './SantaHat';
 import { 
   CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
   DollarSign, TrendingUp, Code, Landmark, Calculator, Dumbbell, Heart, 
