@@ -974,7 +974,7 @@ async function startServer() {
   }
   
   // Start server
-  httpServer = app.listen(PORT, () => {
+  httpServer = app.listen(PORT, async () => {
     console.log(`Pillars server: http://localhost:${PORT}`);
     if (!decryptedGroqApiKey) {
       console.log('ℹ️  No Groq API key configured. Provide via GROQ_KEY environment variable or /api/groq-key/setup');
@@ -989,6 +989,35 @@ async function startServer() {
       }
     } catch (e) {
       console.warn('[startup] Failed to read model choice', e.message);
+    }
+
+    // Setup automatic matched-betting checks if configured
+    try {
+      const { getDecryptedToken, saveLastOffers } = await import('./server/_helpers/oauth_store.js');
+      const secret = process.env.GROQ_SECRET || null;
+      const intervalMins = Number(process.env.MATCHED_CHECK_INTERVAL_MIN || '1440'); // default daily
+      const runCheck = async (source='scheduler') => {
+        try {
+          const token = getDecryptedToken(secret);
+          if (!token) return console.log('[Matched Scheduler] No OAuth token found; skipping');
+          // load function
+          const { fetchRecentEmails } = await import('./scripts/matched_betting_mail.js');
+          const email = (await import('./server/_helpers/oauth_store.js')).getStoredAccountEmail();
+          const offers = await fetchRecentEmails({ email, password: token, days: Number(process.env.MATCHED_CHECK_LOOKBACK_DAYS||'7') });
+          const payload = { offers, timestamp: new Date().toISOString(), source };
+          (await import('./server/_helpers/oauth_store.js')).saveLastOffers(payload);
+          console.log(`[Matched Scheduler] Check complete: ${offers.length} offers`);
+        } catch (e) { console.warn('[Matched Scheduler] Error', e && e.message ? e.message : e); }
+      };
+
+      // run first check immediately after startup if token present
+      setTimeout(runCheck, 5000);
+
+      // schedule repeated checks
+      setInterval(runCheck, Math.max(1, intervalMins) * 60 * 1000);
+      console.log(`[Matched Scheduler] Scheduled every ${intervalMins} minutes`);
+    } catch (e) {
+      console.warn('[startup] Matched scheduler setup failed', e && e.message ? e.message : e);
     }
   });
 }
