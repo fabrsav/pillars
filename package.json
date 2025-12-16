@@ -8,7 +8,7 @@
     "server": "node server.js",
     "build": "vite build",
     "check:refunds": "node scripts/check_refunds.js",
-    "sync": "git add -A && git commit -m \"chore: sync from dev container\" || echo \"No changes to commit\" && git push -u origin main",
+    "sync": "git add -A && git commit -m \"chore: sync from dev container\" || echo \"No changes to commit\" && git push -u --force origin main",
     "sync:watch": "node scripts/auto_sync.js",
     "live": "node run-live.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",

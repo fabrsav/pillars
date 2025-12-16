@@ -4,6 +4,7 @@
   - Watches source changes (excludes .git, node_modules, dist, tmp, build artifacts)
   - Debounces commits to avoid flooding
   - Pushes to origin, setting upstream on first run
+  - Defaults to force-pushing (local -> remote only). Set AUTOSYNC_FORCE_PUSH=0 to disable force.
 */
 import { spawnSync } from 'node:child_process';
 import chokidar from 'chokidar';
@@ -76,12 +77,16 @@ function runSync() {
       return;
     }
     const branch = currentBranch();
-    // Push and set upstream to the configured target branch (defaults to HEAD)
-    const push = sh('git', ['push', '-u', 'origin', TARGET_BRANCH]);
+    // Determine whether to force push (defaults to true to ensure one-way sync local->remote)
+    const forcePush = process.env.AUTOSYNC_FORCE_PUSH ? process.env.AUTOSYNC_FORCE_PUSH !== '0' : true;
+    const pushArgs = ['push', '-u'];
+    if (forcePush) pushArgs.push('--force');
+    pushArgs.push('origin', TARGET_BRANCH);
+    const push = sh('git', pushArgs);
     if (push.code !== 0) {
       log('push failed:', push.err || push.out || push.code);
     } else {
-      log(`pushed ${branch} -> ${TARGET_BRANCH}`);
+      log(`${forcePush ? 'force-pushed' : 'pushed'} ${branch} -> ${TARGET_BRANCH}`);
     }
   } finally {
     syncing = false;
