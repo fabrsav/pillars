@@ -28,4 +28,18 @@ describe('getActiveRefundsTotal', () => {
   it('returns 0 for empty list', () => {
     expect(getActiveRefundsTotal([])).toBe(0);
   });
+
+  it('handles Infinity and non-primitive amounts gracefully', () => {
+    const refunds = [
+      { id: 1, status: 'Da Fare', amount: 10 },
+      { id: 2, status: 'Richiesto', amount: '8.83' },
+      { id: 3, status: 'Da Fare', amount: Infinity },
+      { id: 4, status: 'Rimborsato', amount: '100' },
+      { id: 5, status: 'Da Fare', amount: { value: 10 } }
+    ];
+
+    const total = getActiveRefundsTotal(refunds);
+    // Infinity and non-primitive amounts should be ignored
+    expect(total).toBeCloseTo(18.83, 2);
+  });
 });
