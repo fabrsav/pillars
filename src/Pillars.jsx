@@ -436,6 +436,26 @@ const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refu
   // Local UI state for AI updates
   const [updateText, setUpdateText] = useState('');
   const [isAnalyzingUpdate, setIsAnalyzingUpdate] = useState(false);
+  const [archivedRefunds, setArchivedRefunds, archivedLoaded] = useStorage('pillars_refunds_archive_v1', []);
+  const [showArchived, setShowArchived] = useState(false);
+  const unarchiveRefund = async (id) => {
+    try {
+      if (typeof setArchivedRefunds === 'function') {
+        setArchivedRefunds(prev => (prev || []).filter(a => a.id !== id));
+      } else {
+        const res = await fetch('/api/store/pillars_refunds_archive_v1');
+        let existing = [];
+        if (res.ok) existing = await res.json() || [];
+        existing = Array.isArray(existing) ? existing.filter(a => a.id !== id) : [];
+        await fetch('/api/store/pillars_refunds_archive_v1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(existing) });
+      }
+      setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: false } : r));
+      alert('Rimborso ripristinato dall\'archivio.');
+    } catch (e) {
+      console.error('Failed to unarchive', e);
+      alert('Impossibile ripristinare il rimborso dall\'archivio.');
+    }
+  };
 
   // --- SMART LOGIN ---
   const handleSmartLogin = (email, password) => {
