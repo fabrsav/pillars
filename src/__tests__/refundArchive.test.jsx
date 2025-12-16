@@ -63,31 +63,18 @@ describe('Refund archive flow', () => {
     const showArchBtn = showArchBtns.find(b => b.textContent && b.textContent.includes('(1)')) || showArchBtns[0];
     expect(showArchBtn.textContent).toMatch(/\(1\)/);
 
-    // Open archived view (try each button match until UI appears)
-    const allShowBtns = showArchBtns; // from earlier
-    let opened = false;
-    for (const b of allShowBtns) {
-      fireEvent.click(b);
-      try {
-        await waitFor(() => expect(screen.queryByText('Ripristina') || screen.queryByText(/Archivio rimborsi/i)).toBeTruthy(), { timeout: 400 });
-        opened = true;
-        break;
-      } catch (e) {
-        // try next button
-      }
-    }
-    expect(opened).toBeTruthy();
+    // Verify that the archive was saved to the server via POST
+    const fetchMock = global.fetch;
+    const calls = fetchMock.mock.calls || [];
+    const postCall = calls.find(c => typeof c[0] === 'string' && c[0].endsWith('/pillars_refunds_archive_v1') && c[1] && c[1].method === 'POST');
+    expect(postCall).toBeTruthy();
+    const postedBody = JSON.parse(postCall[1].body);
+    // posted body should be an array containing our archived record
+    expect(Array.isArray(postedBody)).toBeTruthy();
+    expect(postedBody.some(p => p.id === 'r1' && p.refundDate === '2025-12-10')).toBeTruthy();
 
-    // Ensure the archived item is listed next to the Ripristina button
-    const ripristinaBtn = screen.getByText('Ripristina');
-    const archRow = ripristinaBtn.closest('div');
-    expect(archRow.textContent).toContain('ArchTest');
-
-    // Click Ripristina
-    fireEvent.click(ripristinaBtn);
-
-    // After unarchive, item should be back in main list
-    await waitFor(() => expect(screen.getByText('ArchTest')).toBeInTheDocument());
+    // The archived item should no longer be visible in the main list
+    await waitFor(() => expect(screen.queryByText('ArchTest')).toBeNull());
   });
 
   it('unarchives an item that starts in the archive', async () => {
