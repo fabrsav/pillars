@@ -111,7 +111,7 @@ export const CLOSED_REFUND_STATUSES = ['Rimborsato', 'Assistenza', 'Completato',
 
 export const getActiveRefundsTotal = (refundsList = []) => {
   return (refundsList || [])
-    .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status))
+    .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status) && !r.archived)
     .reduce((acc, r) => {
       const v = parseFloat(r?.amount);
       return acc + (Number.isFinite(v) ? v : 0);
@@ -613,6 +613,18 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
   };
 
   const deleteRefund = (id) => setRefunds(refunds.filter(r => r.id !== id));
+  const archiveRefund = (id) => {
+    const target = refunds.find(r => r.id === id);
+    if (!target) return;
+    if (!confirm(`Sei sicuro di archiviare "${target.item}"?`)) return;
+    const todayISO = new Date().toISOString().split('T')[0];
+    const refundDate = prompt('Data rimborso (YYYY-MM-DD):', target.arrivalDate || todayISO);
+    if (refundDate === null) return; // cancelled
+    const archiveRecord = { ...target, archivedAt: new Date().toISOString(), refundDate };
+    setArchivedRefunds(prev => [...(prev || []), archiveRecord]);
+    setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: true, refundDate, history: [{ id: Date.now(), text: `Archiviato il ${refundDate}`, status: r.status, summary: 'Archiviato', timestamp: refundDate }, ...(r.history||[])] } : r));
+    alert('Rimborso archiviato.');
+  };
   const togglePassVisibility = (id) => setShowPassword(prev => ({...prev, [id]: !prev[id]}));
 
   const updateStatus = (id, currentStatus) => {
@@ -2259,6 +2271,7 @@ const Pillars = () => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [activityLog, setActivityLog] = useStorage('pillars_activity_log', []);
   const [refunds, setRefunds, refundsLoaded] = useStorage('pillars_refunds_v3', []);
+  const [archivedRefunds, setArchivedRefunds, archivedLoaded] = useStorage('pillars_refunds_archive_v1', []);
   const [holidayEnabled, setHolidayEnabled] = useStorage('holiday_theme_enabled', false);
   
   // === GOALS SYSTEM - Obiettivi a lungo termine per ogni pillar ===
