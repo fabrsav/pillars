@@ -733,12 +733,16 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       <div className="text-[9px] text-slate-500 flex gap-2">
                         {r.requestDate && <span>📤 Richiesto: {r.requestDate}</span>}
                         {r.arrivalDate && <span>📦 Arrivo: {r.arrivalDate}</span>}
+                        {r.refundDate && <span>💶 Rimborsato: {r.refundDate}</span>}
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => updateStatus(r.id, r.status)} className={`text-[9px] px-3 py-1 rounded-lg border font-bold transition-all hover:brightness-110 active:scale-95 ${r.status === 'Da Fare' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
                           {r.status}
                         </button>
                         <button onClick={() => handleEdit(r)} className="text-slate-600 hover:text-blue-400 transition-colors active:scale-90"><Edit3 size={12}/></button>
+                        {!r.archived && r.status === 'Rimborsato' && (
+                          <button onClick={() => archiveRefund(r.id)} className="text-slate-600 hover:text-amber-400 transition-colors active:scale-90">Archivia</button>
+                        )}
                         <button onClick={() => deleteRefund(r.id)} className="text-slate-600 hover:text-red-400 transition-colors active:scale-90"><Trash2 size={12}/></button>
                       </div>
                     </div>
