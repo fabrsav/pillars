@@ -71,13 +71,23 @@ const useStorage = (key, initialValue) => {
       .then(data => {
         console.log(`[useStorage] ${key} data received:`, data);
         if (data !== null) {
+          // If server returned a numeric-keyed object for an array key (legacy DB), convert it to an array
+          let serverData = data;
+          if (Array.isArray(initialValue) && serverData && typeof serverData === 'object' && !Array.isArray(serverData)) {
+            const keys = Object.keys(serverData);
+            if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+              serverData = keys.map(k => serverData[k]);
+              console.log(`[useStorage] ${key}: converted numeric-keyed object to array (${serverData.length} items)`);
+            }
+          }
+
           // If the expected type (based on initialValue) doesn't match the server value, ignore to avoid runtime crashes
-          if (Array.isArray(initialValue) && !Array.isArray(data)) {
-            console.warn(`[useStorage] ${key}: expected array but server returned ${typeof data}; ignoring server data.`);
+          if (Array.isArray(initialValue) && !Array.isArray(serverData)) {
+            console.warn(`[useStorage] ${key}: expected array but server returned ${typeof serverData}; ignoring server data.`);
             setLoaded(true);
             return;
           }
-          if (!Array.isArray(initialValue) && Array.isArray(data) && initialValue && typeof initialValue === 'object' && !Array.isArray(initialValue)) {
+          if (!Array.isArray(initialValue) && Array.isArray(serverData) && initialValue && typeof initialValue === 'object' && !Array.isArray(initialValue)) {
             console.warn(`[useStorage] ${key}: expected object but server returned array; ignoring server data.`);
             setLoaded(true);
             return;
@@ -87,24 +97,24 @@ const useStorage = (key, initialValue) => {
           setValue(prev => {
             try {
               // If the server returns an array for this key, handle arrays specifically
-              if (Array.isArray(data)) {
+              if (Array.isArray(serverData)) {
                 // If our local value is also an array, merge carefully
                 if (Array.isArray(prev)) {
-                  if (data.length === 0) return prev; // ignore empty server array
+                  if (serverData.length === 0) return prev; // ignore empty server array
                   const indexById = new Map();
                   prev.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
-                  data.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
+                  serverData.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
                   return Array.from(indexById.values());
                 }
                 // If local is not array, fall back to server data unless empty
-                return data.length === 0 ? prev : data;
+                return serverData.length === 0 ? prev : serverData;
               }
 
               // If both prev and data are plain objects, merge keys (used for complex db objects)
-              if (prev && typeof prev === 'object' && !Array.isArray(prev) && data && typeof data === 'object' && !Array.isArray(data)) {
+              if (prev && typeof prev === 'object' && !Array.isArray(prev) && serverData && typeof serverData === 'object' && !Array.isArray(serverData)) {
                 const merged = { ...prev };
-                for (const k of Object.keys(data)) {
-                  const v = data[k];
+                for (const k of Object.keys(serverData)) {
+                  const v = serverData[k];
                   if (Array.isArray(v)) {
                     if (!Array.isArray(merged[k]) || merged[k] == null) merged[k] = [];
                     if (v.length === 0) {
@@ -128,7 +138,7 @@ const useStorage = (key, initialValue) => {
             } catch (e) {
               console.warn('[useStorage] merge failed, falling back to server data', e);
             }
-            return data;
+            return serverData;
           });
         }
         setLoaded(true);
