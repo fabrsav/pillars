@@ -104,6 +104,15 @@ const logError = async (error, context) => {
   }
 };
 
+// === REFUND HELPERS (exported for tests) ===
+export const CLOSED_REFUND_STATUSES = ['Rimborsato', 'Assistenza', 'Completato', 'Annullato'];
+
+export const getActiveRefundsTotal = (refundsList = []) => {
+  return (refundsList || [])
+    .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status))
+    .reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+};
+
 // --- CONFIGURAZIONE GROQ API ---
 // NOTE: Sempre forzare `groq/compound` come unico modello utilizzato.
 const MODEL_FAST = 'groq/compound';
