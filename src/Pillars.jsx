@@ -80,7 +80,18 @@ const useStorage = (key, initialValue) => {
                   const v = data[k];
                   if (Array.isArray(v)) {
                     // If server array is empty, ignore it to avoid wiping local defaults
-                    if (v.length > 0) merged[k] = v;
+                    if (!Array.isArray(merged[k]) || merged[k] == null) merged[k] = [];
+                    if (v.length === 0) {
+                      // keep existing
+                    } else if (Array.isArray(merged[k])) {
+                      // Merge arrays by id (server items override existing by id), keep existing items missing on server
+                      const indexById = new Map();
+                      merged[k].forEach(item => { if (item && item.id) indexById.set(item.id, item); });
+                      v.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
+                      merged[k] = Array.from(indexById.values());
+                    } else {
+                      merged[k] = v;
+                    }
                   } else if (v !== null && typeof v === 'object') {
                     merged[k] = { ...(merged[k] || {}), ...v };
                   } else {
