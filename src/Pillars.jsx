@@ -678,7 +678,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
-                        <h5 className="text-sm font-bold text-white">{r.item}</h5>
+                        <h5 className="text-sm font-bold text-white">{r.item} {r.archived && <span className="text-[10px] text-amber-400 ml-2">Archiv.</span>}</h5>
                       </div>
                       <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
                     </div>
