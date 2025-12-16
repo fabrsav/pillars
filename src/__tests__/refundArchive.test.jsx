@@ -89,4 +89,44 @@ describe('Refund archive flow', () => {
     // After unarchive, item should be back in main list
     await waitFor(() => expect(screen.getByText('ArchTest')).toBeInTheDocument());
   });
+
+  it('unarchives an item that starts in the archive', async () => {
+    const archived = { id: 'r1', platform: 'Test', item: 'ArchTest', amount: '12', status: 'Rimborsato', archived: true, refundDate: '2025-12-10', archivedAt: new Date().toISOString() };
+
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/pillars_refunds_v3')) {
+        // refunds list contains the item but archived=true
+        return { ok: true, json: async () => [archived] };
+      }
+      if (url.endsWith('/pillars_refunds_archive_v1')) {
+        return { ok: true, json: async () => [archived] };
+      }
+      return { ok: false };
+    }));
+
+    render(<Pillars />);
+
+    // Open refunds panel
+    const refundsBtn = await screen.findByText(/Gestione rimborsi/i);
+    const parentBtn = refundsBtn.closest('button') || refundsBtn;
+    parentBtn && parentBtn.click();
+
+    // Archived item should not be visible in main list
+    await waitFor(() => expect(screen.queryByText('ArchTest')).toBeNull());
+
+    // The archived counter should be visible and equal to 1
+    const showArchBtns = screen.getAllByText(/Mostra archiviati/i);
+    const showArchBtn = showArchBtns.find(b => b.textContent && b.textContent.includes('(1)')) || showArchBtns[0];
+    expect(showArchBtn.textContent).toMatch(/\(1\)/);
+
+    // Open archived view and ensure 'Ripristina' is available
+    fireEvent.click(showArchBtn);
+    await waitFor(() => expect(screen.getByText('Ripristina')).toBeInTheDocument());
+
+    const ripristinaBtn = screen.getByText('Ripristina');
+    fireEvent.click(ripristinaBtn);
+
+    // Now the item should reappear in the main list
+    await waitFor(() => expect(screen.getByText('ArchTest')).toBeInTheDocument());
+  });
 });
