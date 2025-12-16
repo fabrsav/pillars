@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Plus } from 'lucide-react';
 import itemsData from '../data/items.json';
 
 const FieldToggle = ({value, onChange, trueLabel='Sì', falseLabel='No'}) => (
@@ -7,7 +8,7 @@ const FieldToggle = ({value, onChange, trueLabel='Sì', falseLabel='No'}) => (
   </button>
 );
 
-const DailyItems = () => {
+const DailyItems = ({ isEditMode = true }) => {
   const [items, setItems] = useState(() => {
     try {
       const raw = localStorage.getItem('daily_items');
@@ -19,6 +20,8 @@ const DailyItems = () => {
 
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const [syncMessage, setSyncMessage] = useState('');
+  const [serverEmpty, setServerEmpty] = useState(false);
+  const fileInputRef = useRef(null);
   const pendingSave = useRef(false);
   const saveTimeout = useRef(null);
 
@@ -33,10 +36,16 @@ const DailyItems = () => {
           return;
         }
         const data = await resp.json();
-        if (!cancelled && Array.isArray(data)) {
+        // If server returned a non-empty array, adopt it. If it returned an empty array, ignore to avoid wiping local data.
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
           setItems(data);
           try { localStorage.setItem('daily_items', JSON.stringify(data)); } catch (_) {}
           setSyncStatus('synced');
+          setServerEmpty(false);
+        } else if (!cancelled && Array.isArray(data) && data.length === 0) {
+          // Server returned empty array — do not overwrite local; flag for user
+          setSyncMessage('Copia server vuota — ignorata');
+          setServerEmpty(true);
         }
       } catch (e) {
         // network error -> server not available; ignore
@@ -80,12 +89,14 @@ const DailyItems = () => {
   }, [items]);
 
   const updateItem = (id, patch) => {
+    setServerEmpty(false);
     setItems(prev => prev.map(it => it.id === id ? { ...it, ...patch } : it));
   };
 
   const resetDefaults = () => {
     if (!window.confirm('Ripristinare i valori di default?')) return;
     setItems(itemsData);
+    setServerEmpty(false);
   };
 
   const exportJson = () => {
@@ -95,6 +106,24 @@ const DailyItems = () => {
     a.href = url; a.download = 'daily_items_export.json'; a.click(); URL.revokeObjectURL(url);
   };
 
+  const importFromFile = (e) => {
+    const f = e?.target?.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const arr = JSON.parse(reader.result);
+        if (!Array.isArray(arr)) throw new Error('Formato non valido');
+        setItems(arr);
+        setServerEmpty(false);
+      } catch (err) {
+        alert('Formato JSON non valido: deve essere un array di oggetti');
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  };
+
   return (
     <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-sm">
       <div className="flex items-center justify-between mb-3">
@@ -102,11 +131,22 @@ const DailyItems = () => {
         <div className="text-xs text-slate-400">{syncStatus === 'syncing' ? 'Sincronizzazione...' : syncStatus === 'synced' ? 'Salvato sul server' : syncStatus === 'error' ? `Errore: ${syncMessage}` : ''}</div>
         <div className="flex gap-2">
           <button onClick={exportJson} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta</button>
+          <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Importa</button>
           <button onClick={resetDefaults} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Reset</button>
+          <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={importFromFile} />
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
+        {serverEmpty && (
+          <div className="p-2 mb-3 bg-yellow-900/40 border border-yellow-700 rounded text-sm text-yellow-200 flex items-center justify-between">
+            <div>Copia server vuota — non ho sovrascritto i tuoi oggettini.</div>
+            <div className="flex gap-2">
+              <button onClick={() => { resetDefaults(); setServerEmpty(false); }} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Ripristina default</button>
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Importa file</button>
+            </div>
+          </div>
+        )}
         {items.map(item => (
           <div key={item.id} className="bg-slate-950/10 p-3 rounded-lg border border-slate-800 flex flex-col gap-2">
             <div className="flex items-center justify-between">
