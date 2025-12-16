@@ -70,15 +70,16 @@ async function fetchRecentEmails({ email, password, days = 7, imapHost = 'imap.g
   // If a token object is provided as `password` (object with refresh_token), prefer XOAUTH2
   if (password && typeof password === 'object' && password.refresh_token) {
     // Exchange refresh token for access token
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+      client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+      grant_type: 'refresh_token',
+      refresh_token: password.refresh_token
+    });
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
-        client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
-        grant_type: 'refresh_token',
-        refresh_token: password.refresh_token
-      })
+      body: params.toString()
     });
     const tokenJson = await tokenRes.json();
     if (!tokenJson.access_token) throw new Error('Failed to obtain access token from refresh_token');
