@@ -438,8 +438,12 @@ const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refu
   const [isAnalyzingUpdate, setIsAnalyzingUpdate] = useState(false);
   const [archivedRefunds, setArchivedRefunds, archivedLoaded] = useStorage('pillars_refunds_archive_v1', []);
   const [showArchived, setShowArchived] = useState(false);
+  const [archiveModal, setArchiveModal] = useState({ open: false, target: null, refundDate: '' });
+  const [toastMessage, setToastMessage] = useState(null);
+
   const unarchiveRefund = async (id) => {
     try {
+      // Remove from archived state
       if (typeof setArchivedRefunds === 'function') {
         setArchivedRefunds(prev => (prev || []).filter(a => a.id !== id));
       } else {
@@ -449,11 +453,17 @@ const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refu
         existing = Array.isArray(existing) ? existing.filter(a => a.id !== id) : [];
         await fetch('/api/store/pillars_refunds_archive_v1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(existing) });
       }
+
+      // Mark refund as not archived in the main list
       setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: false } : r));
-      alert('Rimborso ripristinato dall\'archivio.');
+      setToastMessage('Rimborso ripristinato dall\'archivio.');
+
+      // Auto-hide toast after 2.2s
+      setTimeout(() => setToastMessage(null), 2200);
     } catch (e) {
       console.error('Failed to unarchive', e);
-      alert('Impossibile ripristinare il rimborso dall\'archivio.');
+      setToastMessage('Impossibile ripristinare il rimborso dall\'archivio.');
+      setTimeout(() => setToastMessage(null), 2200);
     }
   };
 
