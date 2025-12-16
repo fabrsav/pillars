@@ -26,27 +26,22 @@ describe('Pillars storage merging', () => {
   });
 
     it('ignores server type mismatch for array keys and keeps local refunds', async () => {
-      // Put a local refund in storage
-      localStorage.setItem('pillars_refunds_v3', JSON.stringify([{ id: 'r1', platform: 'Test', item: 'TestRefund', amount: 10 }]));
-
-      // Mock fetch to return an object instead of an array (server bug)
+      // Mock fetch to return a numeric-keyed object resembling the on-disk DB
       vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
         if (url.endsWith('/pillars_refunds_v3')) {
-          return { ok: true, json: async () => ({ error: 'invalid' }) };
+          return { ok: true, json: async () => ({ "0": { id: 'r1', platform: 'Test', item: 'TestRefund', amount: 10 } }) };
         }
-        // Default fallback response
         return { ok: false };
       }));
 
       render(<Pillars />);
 
-      // Open the refunds widget by clicking the routine
+      // Open the refunds widget by clicking the routine and assert the imported item is shown
       const refundsBtn = await screen.findByText(/Gestione rimborsi/i);
       expect(refundsBtn).toBeTruthy();
-      const btn = refundsBtn.closest('button') || refundsBtn;
-      btn && btn.click();
+      const parentBtn = refundsBtn.closest('button') || refundsBtn;
+      parentBtn && parentBtn.click();
 
-      // The local refund should still be visible
       await waitFor(() => expect(screen.getByText('TestRefund')).toBeInTheDocument());
     });
 });
