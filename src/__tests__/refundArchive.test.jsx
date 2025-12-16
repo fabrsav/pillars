@@ -34,15 +34,15 @@ describe('Refund archive flow', () => {
 
     // Click archive only on the specific refund card
     const refundNode = screen.getByText('ArchTest');
-    // There may be multiple "Archivia" buttons in the DOM; find the one related to this refund
-    const archButtons = screen.getAllByText('Archivia');
-    let myArchBtn = null;
-    for (const b of archButtons) {
-      const parent = b.closest('div');
-      if (parent && parent.textContent && parent.textContent.includes('ArchTest')) { myArchBtn = b; break; }
+    // Find the outer refund card by traversing up to the container with p-4 rounded-xl classes
+    let card = refundNode.parentElement;
+    while (card && card !== document.body && !(card.className && card.className.includes('p-4') && card.className.includes('rounded-xl'))) {
+      card = card.parentElement;
     }
-    expect(myArchBtn).toBeTruthy();
-    fireEvent.click(myArchBtn);
+    expect(card).toBeTruthy();
+    const { within } = require('@testing-library/react');
+    const archBtn = within(card).getByText('Archivia');
+    fireEvent.click(archBtn);
 
     // Modal should open
     await waitFor(() => expect(screen.getByText(/Archivia rimborso/i)).toBeInTheDocument());
