@@ -58,15 +58,20 @@ describe('Refund archive flow', () => {
     // The item should be removed from main list
     await waitFor(() => expect(screen.queryByText('ArchTest')).toBeNull());
 
-    // Show archived and verify it appears
+    // The archived counter should update on the button
     const showArchBtn = screen.getByText(/Mostra archiviati/i);
-    fireEvent.click(showArchBtn);
+    expect(showArchBtn.textContent).toMatch(/\(1\)/);
 
-    await waitFor(() => expect(screen.getByText(/Archivio rimborsi/i)).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('ArchTest')).toBeInTheDocument());
+    // Open archived view
+    fireEvent.click(showArchBtn);
+    await waitFor(() => expect(screen.getByText('Ripristina')).toBeInTheDocument());
+
+    // Ensure the archived item is listed next to the Ripristina button
+    const ripristinaBtn = screen.getByText('Ripristina');
+    const archRow = ripristinaBtn.closest('div');
+    expect(archRow.textContent).toContain('ArchTest');
 
     // Click Ripristina
-    const ripristinaBtn = screen.getByText('Ripristina');
     fireEvent.click(ripristinaBtn);
 
     // After unarchive, item should be back in main list
