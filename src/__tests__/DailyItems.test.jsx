@@ -54,4 +54,25 @@ describe('DailyItems', () => {
 
     expect(screen.queryByText(/Test Item/)).toBeNull();
   });
+
+  it('ignores empty server response and shows banner without overwriting local data', async () => {
+    // Put some local items into localStorage
+    const local = [{ id: 'razor-1', name: 'Rasoio elettrico' }];
+    localStorage.setItem('daily_items', JSON.stringify(local));
+
+    // Mock fetch to return an empty array
+    if (typeof vi !== 'undefined') {
+      global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) }));
+    } else {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) }));
+    }
+
+    render(<DailyItems isEditMode={false} />);
+
+    // Banner should appear indicating server copy was ignored
+    await screen.findByText(/Copia server vuota/i);
+
+    // Local item should still be visible
+    expect(screen.getByText(/Rasoio elettrico/)).toBeInTheDocument();
+  });
 });
