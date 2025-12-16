@@ -384,13 +384,7 @@ app.post('/api/groq-key/change', requireAuth, (req, res) => {
 
 // Matched betting routes
 import matchedRouter from './server/routes/matched_betting.js';
-import matchedOauthRouter from './server/routes/matched_betting_oauth.js';
 app.use('/api/matched-betting', matchedRouter);
-app.use('/api/matched-betting', matchedOauthRouter);
-
-// Christmas gifts routes
-import christmasRouter from './server/routes/christmas_gifts.js';
-app.use('/api/christmas-gifts', christmasRouter);
 
 
 // ==================== ANKI STATS ====================
@@ -974,7 +968,7 @@ async function startServer() {
   }
   
   // Start server
-  httpServer = app.listen(PORT, async () => {
+  httpServer = app.listen(PORT, () => {
     console.log(`Pillars server: http://localhost:${PORT}`);
     if (!decryptedGroqApiKey) {
       console.log('ℹ️  No Groq API key configured. Provide via GROQ_KEY environment variable or /api/groq-key/setup');
@@ -989,30 +983,6 @@ async function startServer() {
       }
     } catch (e) {
       console.warn('[startup] Failed to read model choice', e.message);
-    }
-
-    // Setup automatic matched-betting checks if configured
-    try {
-      const { getDecryptedToken, saveLastOffers } = await import('./server/_helpers/oauth_store.js');
-      const secret = process.env.GROQ_SECRET || null;
-      const intervalMins = Number(process.env.MATCHED_CHECK_INTERVAL_MIN || '1440'); // default daily
-      const { runCheckUsingStoredToken } = await import('./server/_helpers/matched_scheduler.js');
-      const runCheck = async (source='scheduler') => {
-        try {
-          const res = await runCheckUsingStoredToken(secret, Number(process.env.MATCHED_CHECK_LOOKBACK_DAYS||'7'), source);
-          if (res && res.skipped) return console.log('[Matched Scheduler] No OAuth token found; skipping');
-          console.log(`[Matched Scheduler] Check complete: ${res.offers.length} offers`);
-        } catch (e) { console.warn('[Matched Scheduler] Error', e && e.message ? e.message : e); }
-      };
-
-      // run first check immediately after startup if token present
-      setTimeout(() => runCheck('startup'), 5000);
-
-      // schedule repeated checks
-      setInterval(() => runCheck('scheduler'), Math.max(1, intervalMins) * 60 * 1000);
-      console.log(`[Matched Scheduler] Scheduled every ${intervalMins} minutes`);
-    } catch (e) {
-      console.warn('[startup] Matched scheduler setup failed', e && e.message ? e.message : e);
     }
   });
 }
