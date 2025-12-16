@@ -71,6 +71,18 @@ const useStorage = (key, initialValue) => {
       .then(data => {
         console.log(`[useStorage] ${key} data received:`, data);
         if (data !== null) {
+          // If the expected type (based on initialValue) doesn't match the server value, ignore to avoid runtime crashes
+          if (Array.isArray(initialValue) && !Array.isArray(data)) {
+            console.warn(`[useStorage] ${key}: expected array but server returned ${typeof data}; ignoring server data.`);
+            setLoaded(true);
+            return;
+          }
+          if (!Array.isArray(initialValue) && Array.isArray(data) && initialValue && typeof initialValue === 'object' && !Array.isArray(initialValue)) {
+            console.warn(`[useStorage] ${key}: expected object but server returned array; ignoring server data.`);
+            setLoaded(true);
+            return;
+          }
+
           // Merge received data with current value to avoid accidental wiping of defaults
           setValue(prev => {
             try {
