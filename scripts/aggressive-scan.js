@@ -31,7 +31,7 @@ function isoToDays(iso) {
 
 function listRemoteBranches(prefix='origin/') {
   // Use a delimiter to avoid problems with spaces in dates
-  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short)|%(committerdate:iso8601)|%(objectname)' refs/remotes`);
+  const raw = run(`git for-each-ref --sort=-committerdate --format "%(refname:short)|%(committerdate:iso8601)|%(objectname)" refs/remotes`);
   return raw.split('\n').filter(Boolean).map(line => {
     const parts = line.split('|');
     if(parts.length < 3) return null;
@@ -44,7 +44,7 @@ function listRemoteBranches(prefix='origin/') {
 
 function listLocalBranches() {
   // Use a delimiter to avoid issues with spaces in dates
-  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short)|%(committerdate:iso8601)|%(objectname)' refs/heads`);
+  const raw = run(`git for-each-ref --sort=-committerdate --format "%(refname:short)|%(committerdate:iso8601)|%(objectname)" refs/heads`);
   return raw.split('\n').filter(Boolean).map(line => {
     const parts = line.split('|');
     if(parts.length < 3) return null;
