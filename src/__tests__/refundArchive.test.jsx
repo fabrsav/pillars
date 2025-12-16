@@ -41,8 +41,9 @@ describe('Refund archive flow', () => {
     }
     expect(card).toBeTruthy();
     const { within } = require('@testing-library/react');
-    const archBtn = within(card).getByText('Archivia');
-    fireEvent.click(archBtn);
+    const archBtns = within(card).getAllByText('Archivia');
+    // choose the first Archivia button in the card
+    fireEvent.click(archBtns[0]);
 
     // Modal should open
     await waitFor(() => expect(screen.getByText(/Archivia rimborso/i)).toBeInTheDocument());
