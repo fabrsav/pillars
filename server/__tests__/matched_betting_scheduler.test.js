@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { vi } from 'vitest';
+
+vi.mock('../../scripts/matched_betting_mail.js', () => ({
+  fetchRecentEmails: async () => [ { subject: 'Mock offer', from: 'x', date: '2025-12-16', freeBet: 5, odds:2, estimatedGain:5 } ]
+}));
+
 import { runCheckWithToken } from '../../server/_helpers/matched_scheduler.js';
 
 beforeAll(async ()=>{
