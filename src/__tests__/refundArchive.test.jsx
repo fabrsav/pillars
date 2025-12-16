@@ -32,8 +32,11 @@ describe('Refund archive flow', () => {
     // Wait for refund to appear
     await waitFor(() => expect(screen.getByText('ArchTest')).toBeInTheDocument());
 
-    // Click archive
-    const archBtn = screen.getByText('Archivia');
+    // Click archive only on the specific refund card
+    const refundNode = screen.getByText('ArchTest');
+    const refundCard = refundNode.closest('div');
+    const { within } = require('@testing-library/react');
+    const archBtn = within(refundCard).getByText('Archivia');
     fireEvent.click(archBtn);
 
     // Modal should open
