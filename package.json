@@ -16,7 +16,8 @@
     "parse-anki": "node scripts/parse_anki_pdf.js",
     "build:ico": "node ./tools/build-ico.js",
     "test": "vitest",
-    "audit:branches": "node scripts/list-stale-branches.js"
+    "audit:branches": "node scripts/list-stale-branches.js",
+    "audit:report": "node scripts/prepare-branch-report.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
