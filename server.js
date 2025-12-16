@@ -1087,4 +1087,7 @@ async function startServer() {
   });
 }
 
+// Export Express app for tests and start server when running directly
+export { app };
+
 startServer();
