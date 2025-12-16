@@ -38,6 +38,7 @@ import ExamCountdown from './ExamCountdown';
 import AnkiStats from './AnkiStats';
 import Snowfall from './Snowfall';
 import SantaHat from './SantaHat';
+import ChristmasGifts from './ChristmasGifts';
 import { 
   CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
   DollarSign, TrendingUp, Code, Landmark, Calculator, Dumbbell, Heart, 
@@ -625,13 +626,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
 
   // Helper: determine total value of refunds that are "in ballo" (active)
   // Active refunds are those NOT in the closedStatuses list.
-  export const CLOSED_REFUND_STATUSES = ['Rimborsato', 'Assistenza', 'Completato', 'Annullato'];
-
-  export const getActiveRefundsTotal = (refundsList = []) => {
-    return (refundsList || [])
-      .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status))
-      .reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
-  };
 
   const totalPotential = getActiveRefundsTotal(refunds);
 
@@ -2252,6 +2246,7 @@ const Pillars = () => {
   const [nexusAnalysis, setNexusAnalysis] = useState(null);
   const [nexusLoading, setNexusLoading] = useState(false);
   const [examsOpen, setExamsOpen] = useState(false);
+  const [christmasOpen, setChristmasOpen] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
@@ -3196,6 +3191,9 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                 <button onClick={() => setHolidayEnabled(prev => !prev)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Tema natalizio" data-no-edit>
                   <Gift size={20} className={holidayEnabled ? 'text-red-400' : 'text-slate-400'} />
                 </button>
+                <button onClick={() => setChristmasOpen(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Regali di Natale" data-no-edit>
+                  <CalendarHeart size={20} className="text-cyan-400" />
+                </button>
                 {/* API key modal removed */}
               </div>
             </div>
@@ -3714,6 +3712,17 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                 <AnkiStats />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHRISTMAS GIFTS OVERLAY */}
+      {christmasOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-cyan-500/30 w-full max-w-3xl rounded-3xl p-8 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto">
+            <button onClick={() => { setChristmasOpen(false); }} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X/></button>
+            <h3 className="text-cyan-400 font-mono text-sm uppercase tracking-widest mb-4 flex items-center gap-2"><CalendarHeart size={16} /> REGALI DI NATALE</h3>
+            <ChristmasGifts />
           </div>
         </div>
       )}
