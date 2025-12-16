@@ -386,6 +386,10 @@ app.post('/api/groq-key/change', requireAuth, (req, res) => {
 import matchedRouter from './server/routes/matched_betting.js';
 app.use('/api/matched-betting', matchedRouter);
 
+// Christmas gifts routes
+import christmasRouter from './server/routes/christmas_gifts.js';
+app.use('/api/christmas-gifts', christmasRouter);
+
 
 // ==================== ANKI STATS ====================
 app.get('/api/anki-stats', (req, res) => {

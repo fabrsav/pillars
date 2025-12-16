@@ -20,6 +20,8 @@ const DailyItems = ({ isEditMode = true }) => {
 
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const [syncMessage, setSyncMessage] = useState('');
+  const [serverEmpty, setServerEmpty] = useState(false);
+  const fileInputRef = useRef(null);
   const pendingSave = useRef(false);
   const saveTimeout = useRef(null);
 
@@ -34,10 +36,15 @@ const DailyItems = ({ isEditMode = true }) => {
           return;
         }
         const data = await resp.json();
-        if (!cancelled && Array.isArray(data)) {
+        // If server returned a non-empty array, adopt it. If it returned an empty array, ignore to avoid wiping local data.
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
           setItems(data);
           try { localStorage.setItem('daily_items', JSON.stringify(data)); } catch (_) {}
           setSyncStatus('synced');
+        } else if (!cancelled && Array.isArray(data) && data.length === 0) {
+          // Server returned empty array — do not overwrite local; flag for user
+          setSyncMessage('Copia server vuota — ignorata');
+          setServerEmpty(true);
         }
       } catch (e) {
         // network error -> server not available; ignore
@@ -81,12 +88,14 @@ const DailyItems = ({ isEditMode = true }) => {
   }, [items]);
 
   const updateItem = (id, patch) => {
+    setServerEmpty(false);
     setItems(prev => prev.map(it => it.id === id ? { ...it, ...patch } : it));
   };
 
   const resetDefaults = () => {
     if (!window.confirm('Ripristinare i valori di default?')) return;
     setItems(itemsData);
+    setServerEmpty(false);
   };
 
   const exportJson = () => {
@@ -106,6 +115,7 @@ const DailyItems = ({ isEditMode = true }) => {
       cable: !!overrides.cable,
       notes: overrides.notes || ''
     };
+    setServerEmpty(false);
     setItems(prev => [...prev, newItem]);
   };
 
@@ -143,11 +153,30 @@ const DailyItems = ({ isEditMode = true }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', connector: '', magneticMount: false, base: false, cable: false, notes: '' });
 
+  const importFromFile = (e) => {
+    const f = e?.target?.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const arr = JSON.parse(reader.result);
+        if (!Array.isArray(arr)) throw new Error('Formato non valido');
+        setItems(arr);
+        setServerEmpty(false);
+      } catch (err) {
+        alert('Formato JSON non valido: deve essere un array di oggetti');
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  };
+
   const addItem = (e) => {
     e && e.preventDefault();
     if (!newItem.name || !newItem.name.trim()) return alert('Nome richiesto');
     const id = `item-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
     const item = { id, ...newItem };
+    setServerEmpty(false);
     setItems(prev => [...prev, item]);
     setNewItem({ name: '', connector: '', magneticMount: false, base: false, cable: false, notes: '' });
     setShowAddForm(false);
@@ -155,6 +184,7 @@ const DailyItems = ({ isEditMode = true }) => {
 
   const deleteItem = (id) => {
     if (!window.confirm('Eliminare questo oggettino?')) return;
+    setServerEmpty(false);
     setItems(prev => prev.filter(it => it.id !== id));
   };
 
@@ -166,9 +196,21 @@ const DailyItems = ({ isEditMode = true }) => {
         <div className="flex gap-2">
           {isEditMode && <button onClick={() => setShowAddForm(v => !v)} className="text-xs px-2 py-1 bg-slate-800/40 rounded flex items-center gap-2"><Plus size={14}/> Aggiungi</button>}
           <button onClick={exportJson} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta</button>
+          <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Importa</button>
           <button onClick={resetDefaults} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Reset</button>
+          <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={importFromFile} />
         </div>
       </div>
+
+      {serverEmpty && (
+        <div className="p-2 mb-3 bg-yellow-900/40 border border-yellow-700 rounded text-sm text-yellow-200 flex items-center justify-between">
+          <div>Copia server vuota — non ho sovrascritto i tuoi oggettini.</div>
+          <div className="flex gap-2">
+            <button onClick={() => { resetDefaults(); setServerEmpty(false); }} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Ripristina default</button>
+            <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Importa file</button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         {isEditMode && showAddForm && (
