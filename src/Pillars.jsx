@@ -74,17 +74,30 @@ const useStorage = (key, initialValue) => {
           // Merge received data with current value to avoid accidental wiping of defaults
           setValue(prev => {
             try {
-              if (prev && typeof prev === 'object' && typeof data === 'object') {
+              // If the server returns an array for this key, handle arrays specifically
+              if (Array.isArray(data)) {
+                // If our local value is also an array, merge carefully
+                if (Array.isArray(prev)) {
+                  if (data.length === 0) return prev; // ignore empty server array
+                  const indexById = new Map();
+                  prev.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
+                  data.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
+                  return Array.from(indexById.values());
+                }
+                // If local is not array, fall back to server data unless empty
+                return data.length === 0 ? prev : data;
+              }
+
+              // If both prev and data are plain objects, merge keys (used for complex db objects)
+              if (prev && typeof prev === 'object' && !Array.isArray(prev) && data && typeof data === 'object' && !Array.isArray(data)) {
                 const merged = { ...prev };
                 for (const k of Object.keys(data)) {
                   const v = data[k];
                   if (Array.isArray(v)) {
-                    // If server array is empty, ignore it to avoid wiping local defaults
                     if (!Array.isArray(merged[k]) || merged[k] == null) merged[k] = [];
                     if (v.length === 0) {
                       // keep existing
                     } else if (Array.isArray(merged[k])) {
-                      // Merge arrays by id (server items override existing by id), keep existing items missing on server
                       const indexById = new Map();
                       merged[k].forEach(item => { if (item && item.id) indexById.set(item.id, item); });
                       v.forEach(item => { if (item && item.id) indexById.set(item.id, item); });
