@@ -384,7 +384,9 @@ app.post('/api/groq-key/change', requireAuth, (req, res) => {
 
 // Matched betting routes
 import matchedRouter from './server/routes/matched_betting.js';
+import matchedOauthRouter from './server/routes/matched_betting_oauth.js';
 app.use('/api/matched-betting', matchedRouter);
+app.use('/api/matched-betting', matchedOauthRouter);
 
 // Christmas gifts routes
 import christmasRouter from './server/routes/christmas_gifts.js';
