@@ -107,6 +107,19 @@ router.get('/status', requireAuthLocal, (req, res) => {
   return res.json({ connected: true, email: rec.email });
 });
 
+// Get last stored offers
+router.get('/last-offers', requireAuthLocal, (req, res) => {
+  try {
+    const p = path.join(DB_DIR, 'matched_betting_last_offers.json');
+    if (!fs.existsSync(p)) return res.json({ offers: [], timestamp: null });
+    const raw = fs.readFileSync(p, 'utf8');
+    const parsed = JSON.parse(raw);
+    return res.json(parsed);
+  } catch (e) {
+    return res.status(500).json({ error: 'internal' });
+  }
+});
+
 // Disconnect: remove stored token
 router.post('/disconnect', requireAuthLocal, (req, res) => {
   const p = path.join(DB_DIR, 'matched_betting_oauth.json');
