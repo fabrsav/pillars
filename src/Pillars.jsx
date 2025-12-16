@@ -612,7 +612,17 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
   };
 
-  const totalPotential = refunds.filter(r => r.status === 'Da Fare' || r.status === 'Richiesto').reduce((acc, r) => acc + parseFloat(r.amount||0), 0);
+  // Helper: determine total value of refunds that are "in ballo" (active)
+  // Active refunds are those NOT in the closedStatuses list.
+  export const CLOSED_REFUND_STATUSES = ['Rimborsato', 'Assistenza', 'Completato', 'Annullato'];
+
+  export const getActiveRefundsTotal = (refundsList = []) => {
+    return (refundsList || [])
+      .filter(r => !CLOSED_REFUND_STATUSES.includes(r.status))
+      .reduce((acc, r) => acc + (parseFloat(r.amount) || 0), 0);
+  };
+
+  const totalPotential = getActiveRefundsTotal(refunds);
 
   return (
     <div className={`mt-6 rounded-2xl border ${theme.border} p-6 bg-slate-900/40 relative overflow-hidden transition-all duration-500 ease-in-out`}>
