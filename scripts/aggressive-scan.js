@@ -30,20 +30,25 @@ function isoToDays(iso) {
 }
 
 function listRemoteBranches(prefix='origin/') {
-  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short) %(committerdate:iso8601) %(objectname)' refs/remotes`);
+  // Use a delimiter to avoid problems with spaces in dates
+  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short)|%(committerdate:iso8601)|%(objectname)' refs/remotes`);
   return raw.split('\n').filter(Boolean).map(line => {
-    const m = line.match(/^(.*?)\s+(.*?)\s+(.*?)$/);
-    if(!m) return null;
-    return {ref: m[1], date: m[2], sha: m[3], short: m[1].replace(prefix,'')};
+    const parts = line.split('|');
+    if(parts.length < 3) return null;
+    const ref = parts[0].trim();
+    const date = parts[1].trim();
+    const sha = parts[2].trim();
+    return {ref, date, sha, short: ref.replace(prefix,'')};
   }).filter(Boolean).filter(r => r.ref.startsWith(prefix));
 }
 
 function listLocalBranches() {
-  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short) %(committerdate:iso8601) %(objectname)' refs/heads`);
+  // Use a delimiter to avoid issues with spaces in dates
+  const raw = run(`git for-each-ref --sort=-committerdate --format '%(refname:short)|%(committerdate:iso8601)|%(objectname)' refs/heads`);
   return raw.split('\n').filter(Boolean).map(line => {
-    const m = line.match(/^(.*?)\s+(.*?)\s+(.*?)$/);
-    if(!m) return null;
-    return {ref: m[1], date: m[2], sha: m[3]};
+    const parts = line.split('|');
+    if(parts.length < 3) return null;
+    return {ref: parts[0].trim(), date: parts[1].trim(), sha: parts[2].trim()};
   }).filter(Boolean);
 }
 
