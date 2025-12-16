@@ -704,7 +704,22 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
   };
 
   const deleteRefund = (id) => setRefunds(refunds.filter(r => r.id !== id));
-  const archiveRefund = (id) => {
+  const saveArchivedRecordToServer = async (record) => {
+    try {
+      const res = await fetch('/api/store/pillars_refunds_archive_v1');
+      let existing = [];
+      if (res.ok) existing = await res.json() || [];
+      existing = Array.isArray(existing) ? existing : [];
+      existing.push(record);
+      await fetch('/api/store/pillars_refunds_archive_v1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(existing) });
+      return true;
+    } catch (e) {
+      console.error('Failed to save archive to server', e);
+      return false;
+    }
+  };
+
+  const archiveRefund = async (id) => {
     const target = refunds.find(r => r.id === id);
     if (!target) return;
     if (!confirm(`Sei sicuro di archiviare "${target.item}"?`)) return;
@@ -712,7 +727,20 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     const refundDate = prompt('Data rimborso (YYYY-MM-DD):', target.arrivalDate || todayISO);
     if (refundDate === null) return; // cancelled
     const archiveRecord = { ...target, archivedAt: new Date().toISOString(), refundDate };
-    setArchivedRefunds(prev => [...(prev || []), archiveRecord]);
+
+    try {
+      if (typeof setArchivedRefunds === 'function') {
+        setArchivedRefunds(prev => [...(prev || []), archiveRecord]);
+      } else {
+        // fallback: save directly to server
+        await saveArchivedRecordToServer(archiveRecord);
+      }
+    } catch (e) {
+      console.error('archiveRefund setArchivedRefunds failed', e);
+      // attempt server save as fallback
+      await saveArchivedRecordToServer(archiveRecord);
+    }
+
     setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: true, refundDate, history: [{ id: Date.now(), text: `Archiviato il ${refundDate}`, status: r.status, summary: 'Archiviato', timestamp: refundDate }, ...(r.history||[])] } : r));
     alert('Rimborso archiviato.');
   };
@@ -746,6 +774,9 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           <button onClick={autoUpdateAllStatuses} title="Aggiorna stati via IA" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
             Aggiorna stati (AI)
           </button>
+          <button onClick={() => setShowArchived(prev => !prev)} title="Mostra archiviati" className="text-[10px] text-slate-400 hover:text-white bg-slate-800/30 px-2 py-1 rounded ml-2">
+            {showArchived ? 'Nascondi archiviati' : `Mostra archiviati (${(archivedRefunds || []).length})`}
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold ${theme.text}`}>€{Number.isFinite(totalPotential) ? totalPotential.toFixed(2) : '0.00'}</span>
@@ -769,7 +800,30 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
-                        <h5 className="text-sm font-bold text-white">{r.item} {r.archived && <span className="text-[10px] text-amber-400 ml-2">Archiv.</span>}</h5>
+                        <h5 className="text-sm font-bold text-white">{r.item} {r.archived && <span className="text-[10px] text-amber-400 ml-2">Archiv.</span>}</h5> 
+              })}
+
+              {showArchived && (
+                <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/20">
+                  <h6 className="text-sm font-bold mb-2">Archivio rimborsi ({(archivedRefunds || []).length})</h6>
+                  {(archivedRefunds || []).length === 0 ? (
+                    <div className="text-sm text-slate-400">Archivio vuoto</div>
+                  ) : (
+                    (archivedRefunds || []).map(a => (
+                      <div key={a.id} className="flex justify-between items-center py-2 border-b border-slate-800">
+                        <div>
+                          <div className="text-sm font-bold">{a.item}</div>
+                          <div className="text-xs text-slate-400">Rimborsato: {a.refundDate} • Archivio: {a.archivedAt && a.archivedAt.split('T')[0]}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => unarchiveRefund(a.id)} className="text-slate-600 hover:text-emerald-400">Ripristina</button>
+                          <a href={`/api/store/pillars_refunds_archive_v1`} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-amber-400">Apri archivio</a>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
                       </div>
                       <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
                     </div>
@@ -2367,7 +2421,27 @@ const Pillars = () => {
   const [activityLog, setActivityLog] = useStorage('pillars_activity_log', []);
   const [refunds, setRefunds, refundsLoaded] = useStorage('pillars_refunds_v3', []);
   const [archivedRefunds, setArchivedRefunds, archivedLoaded] = useStorage('pillars_refunds_archive_v1', []);
+  const [showArchived, setShowArchived] = useState(false);
   const [holidayEnabled, setHolidayEnabled] = useStorage('holiday_theme_enabled', false);
+
+  const unarchiveRefund = async (id) => {
+    try {
+      if (typeof setArchivedRefunds === 'function') {
+        setArchivedRefunds(prev => (prev || []).filter(a => a.id !== id));
+      } else {
+        const res = await fetch('/api/store/pillars_refunds_archive_v1');
+        let existing = [];
+        if (res.ok) existing = await res.json() || [];
+        existing = Array.isArray(existing) ? existing.filter(a => a.id !== id) : [];
+        await fetch('/api/store/pillars_refunds_archive_v1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(existing) });
+      }
+      setRefunds(prev => prev.map(r => r.id === id ? { ...r, archived: false } : r));
+      alert('Rimborso ripristinato dall\'archivio.');
+    } catch (e) {
+      console.error('Failed to unarchive', e);
+      alert('Impossibile ripristinare il rimborso dall\'archivio.');
+    }
+  };
   
   // === GOALS SYSTEM - Obiettivi a lungo termine per ogni pillar ===
   const [goals, setGoals] = useStorage('pillars_goals', {
