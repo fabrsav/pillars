@@ -4,7 +4,7 @@
   - Watches source changes (excludes .git, node_modules, dist, tmp, build artifacts)
   - Debounces commits to avoid flooding
   - Pushes to origin, setting upstream on first run
-  - Defaults to force-pushing (local -> remote only). Set AUTOSYNC_FORCE_PUSH=0 to disable force.
+  - Defaults to using `--force-with-lease` (safer local -> remote only). Set AUTOSYNC_FORCE_PUSH=0 to disable forcing the push.
 */
 import { spawnSync } from 'node:child_process';
 import chokidar from 'chokidar';
@@ -80,13 +80,14 @@ function runSync() {
     // Determine whether to force push (defaults to true to ensure one-way sync local->remote)
     const forcePush = process.env.AUTOSYNC_FORCE_PUSH ? process.env.AUTOSYNC_FORCE_PUSH !== '0' : true;
     const pushArgs = ['push', '-u'];
-    if (forcePush) pushArgs.push('--force');
+    // Use the safer --force-with-lease by default to avoid overwriting remote changes unexpectedly
+    if (forcePush) pushArgs.push('--force-with-lease');
     pushArgs.push('origin', TARGET_BRANCH);
     const push = sh('git', pushArgs);
     if (push.code !== 0) {
       log('push failed:', push.err || push.out || push.code);
     } else {
-      log(`${forcePush ? 'force-pushed' : 'pushed'} ${branch} -> ${TARGET_BRANCH}`);
+      log(`${forcePush ? 'force-with-lease pushed' : 'pushed'} ${branch} -> ${TARGET_BRANCH}`);
     }
   } finally {
     syncing = false;
