@@ -3018,7 +3018,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
-      
+      {holidayEnabled && <Snowfall />}
       {/* API key modal removed - user requested it to not appear */}
 
       {/* CLOUD SYNC MODAL */}
