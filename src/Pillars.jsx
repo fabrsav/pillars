@@ -844,6 +844,39 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                         <h5 className="text-sm font-bold text-white">{r.item}</h5>
               })}
 
+              {archiveModal.open && (
+                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+                  <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                    <button onClick={cancelArchive} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X size={18} /></button>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                        <Receipt size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-bold">Archivia rimborso</h3>
+                        <p className="text-slate-400 text-xs">Conferma la data di rimborso per completare l'archiviazione.</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-slate-400">Rimborso</label>
+                        <div className="text-sm text-white font-semibold">{archiveModal.target?.item}</div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-400">Data rimborso (YYYY-MM-DD)</label>
+                        <input value={archiveModal.refundDate} onChange={e => setArchiveModal(prev => ({...prev, refundDate: e.target.value}))} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white" />
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <button onClick={cancelArchive} className="px-3 py-1 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Annulla</button>
+                        <button onClick={confirmArchive} className="px-3 py-1 rounded bg-amber-400 text-slate-900 hover:brightness-95">Conferma archivia</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {showArchived && (
                 <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/10">
                   <h6 className="text-base font-bold mb-3">Archivio rimborsi <span className="text-slate-400 text-sm">({(archivedRefunds || []).length})</span></h6>
