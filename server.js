@@ -970,7 +970,7 @@ async function startServer() {
   }
   
   // Start server
-  httpServer = app.listen(PORT, () => {
+  httpServer = app.listen(PORT, async () => {
     console.log(`Pillars server: http://localhost:${PORT}`);
     if (!decryptedGroqApiKey) {
       console.log('ℹ️  No Groq API key configured. Provide via GROQ_KEY environment variable or /api/groq-key/setup');
@@ -985,6 +985,30 @@ async function startServer() {
       }
     } catch (e) {
       console.warn('[startup] Failed to read model choice', e.message);
+    }
+
+    // Setup automatic matched-betting checks if configured
+    try {
+      const { runCheckUsingStoredToken } = await import('./server/_helpers/matched_scheduler.js');
+      const secret = process.env.GROQ_SECRET || null;
+      const intervalMins = Number(process.env.MATCHED_CHECK_INTERVAL_MIN || '1440'); // default daily
+
+      const runCheck = async (source='scheduler') => {
+        try {
+          const res = await runCheckUsingStoredToken(secret, Number(process.env.MATCHED_CHECK_LOOKBACK_DAYS||'7'), source);
+          if (res && res.skipped) return console.log('[Matched Scheduler] No OAuth token found; skipping');
+          console.log(`[Matched Scheduler] Check complete: ${res.offers.length} offers`);
+        } catch (e) { console.warn('[Matched Scheduler] Error', e && e.message ? e.message : e); }
+      };
+
+      // run first check after a short delay
+      setTimeout(() => runCheck('startup'), 5000);
+
+      // schedule repeated checks
+      setInterval(() => runCheck('scheduler'), Math.max(1, intervalMins) * 60 * 1000);
+      console.log(`[Matched Scheduler] Scheduled every ${intervalMins} minutes`);
+    } catch (e) {
+      console.warn('[startup] Matched scheduler setup failed', e && e.message ? e.message : e);
     }
   });
 }
