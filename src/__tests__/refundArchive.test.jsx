@@ -48,7 +48,8 @@ describe('Refund archive flow', () => {
     // Modal should open
     await waitFor(() => expect(screen.getByText(/Archivia rimborso/i)).toBeInTheDocument());
 
-    const dateInput = screen.getByLabelText(/Data rimborso/i);
+    // input has no associated label; select by current display value
+    const dateInput = screen.getByDisplayValue('2025-12-01');
     fireEvent.change(dateInput, { target: { value: '2025-12-10' } });
 
     const confirmBtn = screen.getByText(/Conferma archivia/i);
