@@ -898,7 +898,14 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                   )}
                 </div>
               )}
+
                       </div>
+
+                      {/* Toast message */}
+                      {toastMessage && (
+                        <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-900 rounded-lg px-4 py-2 shadow-lg animate-in fade-in">{toastMessage}</div>
+                      )}
+
                       <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
                     </div>
 
