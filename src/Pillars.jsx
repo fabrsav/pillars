@@ -34,6 +34,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import FabricConfigurator from './FabricConfigurator';
 import DailyItems from './DailyItems';
 import DeadlineCountdown from './DeadlineCountdown';
+import ExamCountdown from './ExamCountdown';
+import AnkiStats from './AnkiStats';
 import { 
   CheckCircle2, Sun, Moon, Play, Pause, RotateCcw, Sparkles, Zap, Trophy, 
   DollarSign, TrendingUp, Code, Landmark, Calculator, Dumbbell, Heart, 
@@ -101,9 +103,9 @@ const logError = async (error, context) => {
 };
 
 // --- CONFIGURAZIONE GROQ API ---
-// NOTA: Usa SEMPRE il modello SMART (reasoning) per tutti i task!
-const MODEL_FAST = 'google/gemini-2.0-flash-001';  // Modello veloce per task semplici
-const MODEL_SMART = 'google/gemini-3-pro-preview';  // Modello top per analisi profonde (Nexus Core)
+// NOTE: Sempre forzare `groq/compound` come unico modello utilizzato.
+const MODEL_FAST = 'groq/compound';
+const MODEL_SMART = 'groq/compound';
 
 const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, reasoningEffort = 'high') => {
   if (!apiKey) throw new Error("MISSING_KEY");
@@ -161,8 +163,16 @@ const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, r
           const fd = await fallbackResp.json();
           return fd.choices?.[0]?.message?.content || null;
         }
+
         const fbTxt = await fallbackResp.text();
         console.error('[Groq fallback error]', fallbackResp.status, fbTxt);
+
+        // If both primary and fallback fail due to model-not-found, surface a clear error
+        const bothModelNotFound = /model.*does not exist|model_not_found|does not exist/i.test(fbTxt) && /model.*does not exist|model_not_found|does not exist/i.test(snippet);
+        if (bothModelNotFound) {
+          throw new Error(`MODEL_NOT_AVAILABLE: ${requestBody.model} (fallback: ${fallbackBody.model})`);
+        }
+
         const fbSnippet = (fbTxt || '').slice(0, 200).replace(/\s+/g, ' ');
         throw new Error(`API Error: ${response.status} ${snippet}; fallback: ${fallbackResp.status} ${fbSnippet}`);
       }
@@ -466,7 +476,9 @@ RISPONDI SOLO con questo JSON (nessun altro testo):
       console.error('[Smart Refund AI] Errore:', e);
       if (e.message === "INVALID_KEY" || e.message === "MISSING_KEY") onApiKeyError();
       else if (e.message === "RATE_LIMIT") alert("Server AI occupato. Riprova tra qualche secondo.");
-      else alert("Errore AI: " + e.message + "\n\nProva a essere più specifico o usa l'inserimento manuale.");
+      else if (e.message && e.message.startsWith('MODEL_NOT_AVAILABLE')) {
+        alert("Errore IA: il modello selezionato non è disponibile con la tua chiave Groq. Vai su Impostazioni AI (Groq Key) e scegli un modello accessibile (es. 'groq/compound' o 'openai/gpt-oss-120b'), oppure carica una chiave con accesso a Gemini.");
+      } else alert("Errore AI: " + e.message + "\n\nProva a essere più specifico o usa l'inserimento manuale.");
     } finally {
       setIsProcessing(false);
     }
@@ -527,7 +539,9 @@ Testo da analizzare: """${text}"""\n`;
       return true;
     } catch (err) {
       if (err.message === 'INVALID_KEY' || err.message === 'MISSING_KEY') onApiKeyError();
-      else alert('Errore IA: ' + err.message);
+      else if (err.message && err.message.startsWith('MODEL_NOT_AVAILABLE')) {
+        alert('Errore IA: il modello selezionato non è disponibile con la tua chiave Groq. Apri Impostazioni AI e scegli un modello accessibile (es. groq/compound o openai/gpt-oss-120b).');
+      } else alert('Errore IA: ' + err.message);
       return false;
     } finally {
       setIsAnalyzingUpdate(false);
@@ -578,7 +592,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
         setRefunds([...refunds, { ...newRefund, id: Date.now() }]);
     }
     
-    setNewRefund({ id: null, platform: '', item: '', email: '', password: '', amount: '', arrivalDate: '', windowDays: 30, requestDate: '', status: 'Da Fare', notes: '', trackingCode: '', pickupCode: '' });
+    setNewRefund({ id: null, platform: '', item: '', email: '', password: '', amount: 0, amountCurrency: 'EUR', arrivalDate: '', estimatedDelivery: '', windowDays: 30, requestDate: '', status: 'Da Fare', notes: '', history: [], trackingCode: '', pickupCode: '', orderId: '', contactPhone: '', priority: 'normal', category: '', assignedTo: '', createdAt: '', lastUpdated: '' });
     setMode('list');
   };
 
@@ -768,6 +782,28 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                 </div>
               </div>
             )}
+
+            {/* Matched betting offers (if any) */}
+            {selectedProject.id === 'betting' && offers && offers.length > 0 && (
+              <div className="bg-slate-900/40 p-2 rounded border border-slate-800 mt-2">
+                <div className="text-[10px] text-slate-300 font-bold mb-2">Offerte recenti ({offers.length})</div>
+                <div className="space-y-2">
+                  {offers.map((o, i) => (
+                    <div key={i} className="flex justify-between items-center text-[12px] p-2 rounded bg-slate-950/30 border border-slate-800">
+                      <div className="flex-1">
+                        <div className="font-bold text-white">{o.subject || '-'} </div>
+                        <div className="text-[11px] text-slate-500">{o.from} — {o.date}</div>
+                      </div>
+                      <div className="text-[12px] text-slate-200 text-right">
+                        <div>Free: {o.freeBet != null ? `€${o.freeBet}` : '-'}</div>
+                        <div>Odds: {o.odds || '-'}</div>
+                        <div className="font-bold">Est. gain: {o.estimatedGain != null ? `€${o.estimatedGain}` : '-'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <button type="submit" className={`w-full py-2 bg-${theme.accent}-600 hover:bg-${theme.accent}-500 text-white text-xs rounded font-bold transition-transform active:scale-95`}>Salva</button>
           </form>
         )}
@@ -953,6 +989,21 @@ const IlariaSystem = ({ theme, apiKey, onApiKeyError }) => {
   const [projectChatInput, setProjectChatInput] = useState('');
   const [projectChatLoading, setProjectChatLoading] = useState(false);
   const [newTaskInput, setNewTaskInput] = useState('');
+  const [offers, setOffers] = useState([]);
+  const [checkingOffers, setCheckingOffers] = useState(false);
+
+  const checkOffers = async (days=7) => {
+    setCheckingOffers(true);
+    try {
+      const res = await fetch('/api/matched-betting/check-emails', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) });
+      const j = await res.json();
+      if (j && j.success) setOffers(j.offers || []);
+      else {
+        console.warn('Matched betting check failed', j);
+      }
+    } catch (e) { console.error('checkOffers error', e); }
+    setCheckingOffers(false);
+  }
 
   const startWebAnalysis = () => {
       setActiveView('web_analysis');
@@ -1335,9 +1386,9 @@ RISPONDI con JSON:
         <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-slate-700 rounded-xl bg-slate-950/30 animate-in fade-in">
             <div className="text-center space-y-4 p-4">
                 <div className="p-3 bg-slate-900 rounded-full inline-block"><Sparkles size={24} className="text-pink-500"/></div>
-                <h3 className="text-sm font-bold text-white">Analisi Relazione (Gemini Advanced)</h3>
+                <h3 className="text-sm font-bold text-white">Analisi Relazione (Groq Compound)</h3>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                    Usa il tuo account Gemini Premium per analizzare la chat completa senza limiti di token.
+                  Analisi eseguita con il modello `groq/compound` (forzato dall'app). Fornisci una chiave Groq valida per usare il servizio.
                 </p>
                 <button onClick={startWebAnalysis} className={`px-6 py-2 bg-gradient-to-r ${theme.gradient} text-white text-xs font-bold uppercase rounded-lg shadow-lg transition-transform active:scale-95`}>
                     Avvia Procedura Web
@@ -1357,14 +1408,14 @@ RISPONDI con JSON:
                   <div className="flex items-center gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 text-xs font-bold">2</span>
                       <div className="flex-1">
-                        <p className="text-xs text-slate-300 mb-1">Copia il prompt ottimizzato e incollalo in Gemini.</p>
+                        <p className="text-xs text-slate-300 mb-1">Copia il prompt ottimizzato e incollalo nel servizio Groq (se richiesto).</p>
                         <button onClick={copyPrompt} className="text-[10px] px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded border border-slate-600 transition-colors">Copia Prompt</button>
                       </div>
                   </div>
                   <div className="flex items-start gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 text-xs font-bold">3</span>
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs text-slate-300">Incolla qui sotto la risposta completa di Gemini:</p>
+                        <p className="text-xs text-slate-300">Incolla qui sotto la risposta completa del modello (Groq Compound):</p>
                         <textarea 
                             value={pastedResponse}
                             onChange={e => setPastedResponse(e.target.value)}
@@ -1530,6 +1581,16 @@ RISPONDI con JSON:
                     </div>
                 </div>
                 <Gem size={20} className="text-pink-400" />
+                {selectedProject.id === 'betting' && (
+                  <div className="ml-3 flex items-center gap-2">
+                    <button onClick={() => checkOffers(7)} disabled={checkingOffers} className="text-[11px] px-2 py-1 rounded bg-indigo-700/20 text-indigo-300 hover:bg-indigo-700/30 transition-all">
+                      {checkingOffers ? 'Controllo...' : 'Controlla offerte 7gg'}
+                    </button>
+                    <button onClick={() => checkOffers(30)} disabled={checkingOffers} className="text-[11px] px-2 py-1 rounded bg-indigo-700/10 text-indigo-300 hover:bg-indigo-700/20 transition-all">
+                      30gg
+                    </button>
+                  </div>
+                )}
             </div>
 
             {/* Progress Bar */}
@@ -1697,6 +1758,7 @@ const INITIAL_DATA = {
     { id: 'betting', title: 'Matched betting', icon: 'betting', desc: 'Operatività giornaliera', tasks: [{id:1, text:'NinjaBet daily', completed:false}] },
     { id: 'refunds', title: 'Gestione rimborsi', icon: 'refunds', desc: 'Stato pratiche e scadenze', tasks: [] },
     { id: 'fabric', title: 'Skate Cover', icon: 'skate', desc: 'Acquisto tessuto tecnico', tasks: [] }
+    ,{ id: 'daily_items', title: 'Oggettini', icon: 'package', desc: 'Oggetti quotidiani (presa magnetica, basetta, cavo)', tasks: [] }
   ],
   health: [
     { id: 'sprint', title: 'Velocità', icon: 'sprint', desc: 'Attivazione nervosa', tasks: [{id:1, text:'Riscaldamento', completed:false}, {id:2, text:'Scatti 30m', completed:false}] },
@@ -1705,14 +1767,16 @@ const INITIAL_DATA = {
   brain: [
     { id: 'uni', title: 'Università', icon: 'university', desc: 'Studio e scadenze', tasks: [{id:1, text:'Pomodoro 25m', completed:false}] },
     { id: 'read', title: 'Lettura', icon: 'learning', desc: 'Formazione personale', tasks: [{id:1, text:'10 pagine', completed:false}] },
+    { id: 'sora', title: 'Sora', icon: 'map-pin', desc: 'Cose da fare quando sei a Sora', tasks: [] },
   ],
   heart: [
     { id: 'partner', title: 'Partner', icon: 'love', desc: 'Tempo di qualità', tasks: [{id:1, text:'Messaggio buongiorno', completed:false}] },
     { id: 'finance', title: 'Fondo comune', icon: 'finance', desc: 'Obiettivi futuri', tasks: [{id:1, text:'Aggiorna budget', completed:false}] },
+    { id: 'ilaria_pickups', title: "Da prendere per Ilaria", icon: 'package', desc: 'Cose da prendere a Sora e portare a Roma', tasks: [{id:1, text: 'Microscopio elettronico', completed: false}] },
   ]
 };
 
-// --- GLOBAL INLINE EDITOR (Direct contentEditable - no popup) ---
+  // --- GLOBAL INLINE EDITOR (Direct contentEditable - no popup) ---
 // Undo/Redo history stored globally
 const undoHistory = [];
 const redoHistory = [];
@@ -2042,24 +2106,35 @@ const GlobalTextEditor = ({ data, setData }) => {
 
   return null; // No visible UI - editing happens directly inline
 };// --- COMPONENTE PRINCIPALE ---
+import SoraPlanner from './SoraPlanner';
 const Pillars = () => {
   const [data, setData] = useStorage('pillars_db_v10', INITIAL_DATA);
   
   const [apiKey, setApiKey] = useState('');
-
-  const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyStatus, setKeyStatus] = useState('idle'); // idle, checking, valid, error
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedModel, setSelectedModel] = useState('groq/compound');
   
   // Cloud Sync State
   const [showCloudModal, setShowCloudModal] = useState(false);
   const [cloudConfig, setCloudConfig] = useStorage('pillars_cloud_config', { apiKey: '', binId: '' });
   const [cloudInfo, setCloudInfo] = useState({ lastSync: null });
+  const [driveStatus, setDriveStatus] = useState({ hasServiceAccount: false, hasTokenFile: false });
+
+  useEffect(() => {
+    if (!showCloudModal) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/google-drive/status');
+        if (res.ok) setDriveStatus(await res.json());
+      } catch { /* ignore */ }
+    })();
+  }, [showCloudModal]);
   
   // Task editing state
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState('');
+  const [editingTaskReason, setEditingTaskReason] = useState('');
 
   // === QUICK ADD SYSTEM - Input globale con classificazione AI ===
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -2100,18 +2175,15 @@ const Pillars = () => {
               // continue to validate below
             } else {
               setKeyStatus('idle');
-              setShowKeyModal(true);
               return;
             }
           } else {
             // Locked / not decrypted on server
-            setKeyStatus('idle');
-            setShowKeyModal(true);
+              setKeyStatus('idle');
             return;
           }
         } catch (e) {
           setKeyStatus('idle');
-          setShowKeyModal(true);
           return;
         }
       }
@@ -2128,7 +2200,6 @@ const Pillars = () => {
         }
         console.warn("Key validation failed", e);
         setKeyStatus('error');
-        setShowKeyModal(true);
       }
     };
 
@@ -2159,6 +2230,7 @@ const Pillars = () => {
   const [nexusOpen, setNexusOpen] = useState(false);
   const [nexusAnalysis, setNexusAnalysis] = useState(null);
   const [nexusLoading, setNexusLoading] = useState(false);
+  const [examsOpen, setExamsOpen] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
@@ -2197,6 +2269,31 @@ const Pillars = () => {
 
   const currentTheme = THEMES[activeTab];
   const activeRoutine = data[activeTab]?.find(r => r.id === activeRoutineId) || data[activeTab]?.[0];
+
+  // When the user navigates to a different view/tab/routine or opens a modal,
+  // automatically disable edit mode and clean up any active per-item editing.
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    setIsEditMode(false);
+
+    // Clear any task-level editing state
+    if (typeof setEditingTaskId === 'function') setEditingTaskId(null);
+    if (typeof setEditingTaskText === 'function') setEditingTaskText('');
+    if (typeof setEditingTaskReason === 'function') setEditingTaskReason('');
+
+    // Cleanup any active inline editing element
+    if (typeof activeElementRef !== 'undefined' && activeElementRef && activeElementRef.current) {
+      try {
+        activeElementRef.current.contentEditable = 'false';
+        activeElementRef.current.style.outline = '';
+        activeElementRef.current.style.background = '';
+      } catch (err) {
+        // ignore
+      }
+      activeElementRef.current = null;
+    }
+  }, [activeTab, activeRoutineId]);
 
   // --- ACTIVITY LOG SYSTEM (defined early for use in task functions) ---
   const addToLog = (action, details) => {
@@ -2260,6 +2357,7 @@ const Pillars = () => {
   const startEditTask = (task) => {
     setEditingTaskId(task.id);
     setEditingTaskText(task.text);
+    setEditingTaskReason(task.reason || '');
   };
 
   const saveEditTask = (rId, tId) => {
@@ -2268,19 +2366,21 @@ const Pillars = () => {
       return;
     }
     const cleanText = editingTaskText.replace(/\.$/, '').trim();
+    const cleanReason = editingTaskReason?.replace(/\.$/, '').trim() || null;
     const updated = data[activeTab].map(r => 
       r.id === rId 
-        ? {...r, tasks: r.tasks.map(t => t.id === tId ? {...t, text: cleanText} : t)} 
+        ? {...r, tasks: r.tasks.map(t => t.id === tId ? {...t, text: cleanText, reason: cleanReason, isAiGenerated: !!cleanReason} : t)} 
         : r
     );
     setData({...data, [activeTab]: updated});
-    addToLog('TASK_EDITED', cleanText);
+    addToLog('TASK_EDITED', `${cleanText}${cleanReason ? ` (${cleanReason})` : ''}`);
     cancelEditTask();
   };
 
   const cancelEditTask = () => {
     setEditingTaskId(null);
     setEditingTaskText('');
+    setEditingTaskReason('');
   };
 
   
@@ -2313,7 +2413,7 @@ const Pillars = () => {
 
   const handleApiKeyError = () => {
       setKeyStatus('error');
-      setShowKeyModal(true);
+      // modal removed: do not open modal on API key errors
   };
 
   // === QUICK ADD AI PROCESSOR ===
@@ -2759,6 +2859,16 @@ Parla direttamente a Fabrizio (usa "tu"). Sii onesto e specifico.
 Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.`;
 
     try {
+      // Fetch Anki stats (if available)
+      let ankiData = null;
+      try {
+        const ares = await fetch('/api/anki-stats');
+        if (ares.ok) {
+          const aj = await ares.json();
+          ankiData = (aj.stats && aj.stats.length > 0) ? aj.stats[0] : null;
+        }
+      } catch (e) { /* ignore */ }
+
       const aiInsight = await callGroq(prompt, apiKey, MODEL_SMART);
       setNexusAnalysis({
         stats,
@@ -2780,6 +2890,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
           items: urgentRefunds.slice(0, 3)
         },
         garmin: garminData,
+        anki: ankiData,
         aiInsight: aiInsight || "Analisi completata."
       });
     } catch (e) {
@@ -2888,6 +2999,8 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
       case 'uni': return <UnivaqPanel theme={currentTheme} />;
       case 'refunds': return <RefundManager theme={currentTheme} apiKey={apiKey} onApiKeyError={handleApiKeyError} refunds={refunds} setRefunds={setRefunds} refundsLoaded={refundsLoaded} />;
       case 'fabric': return <FabricConfigurator theme={currentTheme} />;
+      case 'daily_items': return <DailyItems isEditMode={isEditMode} />;
+      case 'sora': return <SoraPlanner isEditMode={isEditMode} />;
       default: return null;
     }
   };
@@ -2895,112 +3008,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentTheme.bg} text-slate-200 font-sans transition-all duration-700 ease-out selection:bg-${currentTheme.accent}-500/30`}>
       
-      {/* API KEY MODAL */}
-      {showKeyModal && (
-          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-              <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
-                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Key size={20}/> Configurazione API Key</h3>
-                  <p className="text-sm text-slate-400 mb-4">Inserisci la chiave API Groq (verrà mantenuta solo per la sessione).</p>
-                  
-                  {keyStatus === 'error' && (
-                      <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-200 text-xs">
-                          <AlertTriangle size={16}/>
-                          Chiave non valida o password errata.
-                      </div>
-                  )}
-
-                  {keyStatus === 'checking' && (
-                      <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg flex items-center gap-2 text-blue-200 text-xs">
-                          <Loader2 size={16} className="animate-spin"/>
-                          Verifica in corso...
-                      </div>
-                  )}
-
-                  <div className="mb-4">
-                    <label className="text-xs text-slate-400 mb-2 block">Chiave API Groq (sessione):</label>
-                    <input 
-                      id="manual-key"
-                      type="password" 
-                      placeholder="sk-or-..." 
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none"
-                      onKeyDown={(e) => {
-                          if(e.key === 'Enter') {
-                              setApiKey(e.target.value);
-                              setShowKeyModal(false);
-                          }
-                      }}
-                    />
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="text-xs text-slate-400 mb-2 block">Seleziona modello Groq (opzionale):</label>
-                    <div className="flex gap-2 items-center">
-                      <select value={selectedModel} onChange={e=>setSelectedModel(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-emerald-500 outline-none text-sm">
-                        <option value="">-- usa default --</option>
-                        {models.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                      <button onClick={async () => {
-                        try {
-                          const res = await fetch('/api/groq-model-choice', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: selectedModel }) });
-                          if (res.ok) {
-                            setKeyStatus('model_saved');
-                          } else {
-                            const j = await res.json().catch(()=>null);
-                            setKeyStatus('error');
-                            console.warn('Save model failed', j);
-                          }
-                        } catch (e) { console.error(e); setKeyStatus('error'); }
-                      }} className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs">Salva</button>
-                    </div>
-                    <div className="text-xs text-slate-500 mt-2">Consiglio: scegli un modello a cui hai accesso per evitare errori di model_not_found.</div>
-                  </div>
-
-                  <div className="mb-2 text-xs text-slate-400">Oppure usa una chiave già presente sul server (utile per primo avvio locale).</div>
-                  <div className="flex gap-2">
-                    <button 
-                        onClick={() => setShowKeyModal(false)}
-                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors text-xs uppercase"
-                    >
-                        Continua senza AI
-                    </button>
-                    <button 
-                        onClick={async () => {
-                          const manualKey = document.getElementById('manual-key').value;
-                          if (manualKey) {
-                            setApiKey(manualKey);
-                            setKeyStatus('valid');
-                            setShowKeyModal(false);
-                            return;
-                          }
-
-                          // Try loading plaintext key from server (legacy file)
-                          try {
-                            const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-                            if (res.ok) {
-                              const j = await res.json();
-                              if (j && j.key) {
-                                setApiKey(j.key);
-                                setKeyStatus('valid');
-                                setShowKeyModal(false);
-                                return;
-                              }
-                            }
-                            const txt = await res.text();
-                            setKeyStatus('error');
-                            console.warn('Load plaintext key failed:', txt);
-                          } catch (e) {
-                            console.error('Load plaintext key error', e);
-                            setKeyStatus('error');
-                          }
-                        }}
-                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors text-xs uppercase"
-                    >
-                        Sblocca / Usa chiave server
-                    </button>
-                  </div>
-              </div>
-          </div>
-      )}
+      {/* API key modal removed - user requested it to not appear */}
 
       {/* CLOUD SYNC MODAL */}
       {showCloudModal && (
@@ -3064,6 +3072,34 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     defaultValue={cloudConfig.binId}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white mb-4 focus:border-emerald-500 outline-none text-sm"
                   />
+
+                  <div className="mb-4">
+                    <div className="text-xs text-slate-400 mb-2">Esporta database</div>
+                    <div className="flex gap-2">
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch('/api/export-db');
+                          if (!res.ok) { alert('Export fallito'); return; }
+                          const data = await res.json();
+                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = 'pillars_database_export.json'; a.click(); URL.revokeObjectURL(url);
+                        } catch (e) { console.error(e); alert('Errore nell\'esportazione'); }
+                      }} className="text-xs px-2 py-1 bg-slate-800/40 rounded">Esporta (Download)</button>
+
+                      <button onClick={async () => {
+                        if (!confirm('Caricare l\'intero DB su Google Drive e sovrascrivere se presente?')) return;
+                        try {
+                          const res = await fetch('/api/export-db', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ drive: true, filename: 'pillars_database_export.json' }) });
+                          const j = await res.json();
+                          if (res.ok) alert('Upload completato'); else alert('Upload Drive fallito: ' + (j && j.error ? j.error : 'errore'));
+                        } catch (e) { console.error(e); alert('Errore caricamento su Drive'); }
+                      }} className="text-xs px-2 py-1 bg-emerald-600/20 rounded">Carica su Google Drive (fab.savona@gmail.com)</button>
+                    </div>
+                    <div className="text-[11px] mt-2 text-slate-500">Per caricare su Google Drive: configura `GOOGLE_SERVICE_ACCOUNT_KEY` (service account) o salva un token OAuth via `/api/google-drive/save-token`.</div>
+                    <div className="text-[11px] mt-2 text-slate-400">Drive configurato: {driveStatus.hasServiceAccount ? 'Service Account' : driveStatus.hasTokenFile ? 'OAuth token' : 'No'}</div>
+                  </div>
 
                   <div className="flex gap-2">
                     <button 
@@ -3133,9 +3169,11 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
                     <Cpu size={20} className="text-cyan-400" />
                 </button>
-                <button onClick={() => setShowKeyModal(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Configura API Key" data-no-edit>
-                  <Key size={20} className={keyStatus === 'valid' ? 'text-emerald-400' : keyStatus === 'checking' ? 'text-blue-400' : keyStatus === 'error' ? 'text-rose-400' : 'text-slate-400'} />
+                <button onClick={() => setExamsOpen(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Esami / Anki" data-no-edit>
+                  <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
+                  <School size={20} className="text-indigo-400" />
                 </button>
+                {/* API key modal removed */}
               </div>
             </div>
 
@@ -3160,7 +3198,11 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
             <div className="space-y-2">
               <div className="flex justify-between items-center mb-2 px-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">INTERFACCE</span>
-                <button onClick={() => setIsEditMode(!isEditMode)} className={`p-1.5 rounded-lg transition-all active:scale-95 ${isEditMode ? 'bg-amber-500/20 text-amber-400' : 'hover:bg-slate-800 text-slate-500'}`}>
+                <button
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={isEditMode ? 'Disattiva modalità modifica' : 'Attiva modalità modifica'}
+                  aria-pressed={isEditMode}
+                  className={`p-1.5 rounded-lg transition-all active:scale-95 ${isEditMode ? 'bg-amber-500/20 text-amber-400' : 'hover:bg-slate-800 text-slate-500'}`}>
                   {isEditMode ? <CheckSquare size={14}/> : <Edit3 size={14}/>}
                 </button>
               </div>
@@ -3307,6 +3349,15 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                             className="flex-1 bg-slate-950 border border-blue-500 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
                             autoFocus
                           />
+                          <div className="mt-2 w-full">
+                            <input
+                              type="text"
+                              value={editingTaskReason}
+                              placeholder="Descrizione breve (opzionale)"
+                              onChange={(e) => setEditingTaskReason(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300"
+                            />
+                          </div>
                           <button 
                             onClick={() => saveEditTask(activeRoutine.id, t.id)} 
                             className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-all active:scale-90"
@@ -3404,9 +3455,11 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
               {/* SPECIAL WIDGETS */}
               <div className={`mt-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeRoutine.tasks?.length > 0 ? 'pt-6 border-t border-slate-800/50' : ''}`}>
                 {renderSpecialWidget()}
-                <div className="mt-6">
-                  <DailyItems />
-                </div>
+                {activeRoutine?.id === 'daily_items' && (
+                  <div className="mt-6">
+                    <DailyItems isEditMode={isEditMode} />
+                  </div>
+                )}
               </div>
 
             </div>
@@ -3581,7 +3634,6 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     {/* If the AI indicates a missing API key, show quick actions */}
                     {/API Key|API Key mancante|Chiave/i.test(nexusAnalysis.aiInsight) && (
                       <div className="mt-3 flex gap-2">
-                        <button onClick={() => setShowKeyModal(true)} className="py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs">Configura chiave</button>
                         <button onClick={async () => {
                           try {
                             const res = await fetch('/api/groq-key/load-plaintext', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
@@ -3619,6 +3671,27 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
              )}
            </div>
          </div>
+      )}
+
+      {/* EXAMS / ANKI OVERLAY */}
+      {examsOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            <button onClick={() => { setExamsOpen(false); }} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X/></button>
+            <h3 className="text-indigo-400 font-mono text-sm uppercase tracking-widest mb-6 flex items-center gap-2">
+              <School size={16} /> ESAMI & ANKI
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <ExamCountdown />
+              </div>
+              <div>
+                <AnkiStats />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* === QUICK ADD FLOATING BUTTON === */}

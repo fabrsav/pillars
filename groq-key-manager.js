@@ -10,8 +10,10 @@
 import crypto from 'crypto';
 
 // NO HARDCODED KEYS - Use environment variable GROQ_KEY or provide via UI
+// You can place a plaintext key here for convenience, or provide via `GROQ_KEY` env var.
 export const PLAINTEXT_GROQ_KEY = '';
 
+// ENCRYPTED_KEY kept for backwards compatibility but encryption flow is deprecated
 const ENCRYPTED_KEY = {};
 
 // Derive encryption key from password using PBKDF2
@@ -72,19 +74,21 @@ export function decryptApiKey(encryptedData, password) {
 }
 
 // Get the decrypted API key (requires password from environment or user)
-export function getGroqApiKey(password) {
-  // If a plaintext hardcoded key is present, return it immediately.
-  // This gives an easy, guaranteed-working fallback requested by the user.
+export function getGroqApiKey() {
+  // Prefer explicit PLAINTEXT_GROQ_KEY if provided
   if (typeof PLAINTEXT_GROQ_KEY === 'string' && PLAINTEXT_GROQ_KEY.length > 0) {
     return PLAINTEXT_GROQ_KEY;
   }
 
-  // If no encrypted data yet, throw error
-  if (!ENCRYPTED_KEY || (!ENCRYPTED_KEY.encrypted && !ENCRYPTED_KEY.data)) {
-    throw new Error('NO_ENCRYPTED_KEY');
+  // Prefer environment variable if set (convenient for local dev)
+  if (process.env.GROQ_KEY && process.env.GROQ_KEY.length > 0) {
+    return process.env.GROQ_KEY;
   }
 
-  return decryptApiKey(ENCRYPTED_KEY, password);
+  // If no plaintext key is available we return null rather than throwing
+  // to avoid noisy decryption errors when encryption has been intentionally
+  // retired in this deployment.
+  return null;
 }
 
 // Store encrypted key in this file (call this once to encrypt and update the file)

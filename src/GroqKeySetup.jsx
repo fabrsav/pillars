@@ -5,25 +5,13 @@ export default function GroqKeySetup() {
   const [password, setPassword] = useState('');
   const [updateSource, setUpdateSource] = useState(false);
   const [status, setStatus] = useState(null);
-  const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('');
+  // Fixed model - do not allow changing it in the UI
+  const [selectedModel, setSelectedModel] = useState('groq/compound');
 
   useEffect(() => {
-    // Try to load models on mount (may return defaults)
-    fetchModels();
+    // Ensure UI shows forced model from server if available
     fetchModelChoice();
   }, []);
-
-  async function fetchModels() {
-    try {
-      const res = await fetch('/api/groq-models');
-      const j = await res.json();
-      if (j && Array.isArray(j.models)) setModels(j.models);
-      else if (j && j.models) setModels(j.models);
-    } catch (e) {
-      console.warn('Failed to fetch models', e);
-    }
-  }
 
   async function handleSetup(e) {
     e.preventDefault();
@@ -51,23 +39,6 @@ export default function GroqKeySetup() {
     }
   }
 
-  function saveModelChoice(m) {
-    setSelectedModel(m);
-    setStatus('saving_model');
-    fetch('/api/groq-model-choice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: m })
-    }).then(async res => {
-      if (res.ok) {
-        setStatus('model_saved');
-      } else {
-        const j = await res.json().catch(()=>null);
-        setStatus('error: ' + (j && j.error ? j.error : String(res.status)));
-      }
-    }).catch(e => setStatus('error: ' + String(e)));
-  }
-
   async function fetchModelChoice() {
     try {
       const res = await fetch('/api/groq-model-choice');
@@ -83,24 +54,17 @@ export default function GroqKeySetup() {
   const [testResponse, setTestResponse] = useState(null);
 
   async function runTest() {
-    if (!selectedModel) {
-      setStatus('error: seleziona prima un modello');
-      return;
-    }
+    // selectedModel is always set to 'groq/compound'
     setTestLoading(true);
     setTestResponse(null);
     setStatus('testing');
     try {
-      const body = {
-        model: selectedModel,
-        messages: [{ role: 'user', content: testPrompt }],
-        max_tokens: 200
-      };
-
-      const res = await fetch('/api/groq-proxy', {
+      // Use the forced model `groq/compound` via the server proxy endpoint
+      const proxyBody = { prompt: testPrompt, model: selectedModel, max_completion_tokens: 200 };
+      const res = await fetch('/api/groq', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(proxyBody)
       });
 
       const text = await res.text();
@@ -144,12 +108,8 @@ export default function GroqKeySetup() {
       </form>
 
       <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
-        <label style={{fontSize:12}}>Seleziona modello Groq:</label>
-        <select value={selectedModel} onChange={e=>saveModelChoice(e.target.value)}>
-          <option value="">-- seleziona --</option>
-          {models.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        {selectedModel && <small style={{marginLeft:8}}>Salvato: {selectedModel}</small>}
+        <label style={{fontSize:12}}>Modello Groq forzato:</label>
+        <small style={{marginLeft:8}}>{selectedModel}</small>
       </div>
     </div>
   );

@@ -7,9 +7,12 @@ import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { fetchRecentEmails } from './scripts/matched_betting_mail.js';
+import { parseDir as parseAnkiDir } from './scripts/parse_anki_pdf.js';
 
 // Load environment variables from .env if present
 dotenv.config();
+import { google } from 'googleapis';
 import { getGroqApiKey, PLAINTEXT_GROQ_KEY, updateEncryptedKey } from './groq-key-manager.js';
 
 process.on('uncaughtException', (err) => {
@@ -144,29 +147,19 @@ try {
       const parsed = JSON.parse(raw);
 
       // Detect password-encrypted object (has data + tag)
-      if (parsed && parsed.data && parsed.tag && parsed.salt && parsed.iv) {
-        // If environment password provided, decrypt
-        if (process.env.GROQ_KEY_PASSWORD) {
-          try {
-            GROQ_KEY = decryptWithPassword(parsed, process.env.GROQ_KEY_PASSWORD);
-            console.log('[server] Groq key loaded into memory (decrypted with GROQ_KEY_PASSWORD)');
-          } catch (e) {
-            console.warn('[server] Failed to decrypt pillars_groq_key.json with GROQ_KEY_PASSWORD');
+          if (parsed && parsed.data && parsed.tag && parsed.salt && parsed.iv) {
+            // Password-encrypted format detected. We no longer require encryption
+            // for normal usage; if an opertor wants to decrypt they can use
+            // /api/groq-key/decrypt, but absence of a password should not cause
+            // hard failures on startup.
+            console.log('[server] Found password-encrypted Groq key on disk; encryption is optional now.');
+          } else if (parsed && parsed.encrypted) {
+            // scrypt/GROQ_SECRET format - preserve for compatibility but do not
+            // fail startup when secret is missing.
+            console.log('[server] Found GROQ_SECRET-encrypted key on disk; encryption is optional now.');
+          } else if (typeof parsed === 'string') {
+            GROQ_KEY = parsed;
           }
-        } else {
-          console.log('[server] Found password-encrypted Groq key on disk. Provide password via GROQ_KEY_PASSWORD or /api/groq-key/decrypt');
-        }
-      } else if (parsed && parsed.encrypted) {
-        // scrypt/GROQ_SECRET format
-        if (GROQ_SECRET) {
-          GROQ_KEY = decryptPayload(parsed, GROQ_SECRET);
-          console.log('[server] Groq key loaded into memory (decrypted with GROQ_SECRET)');
-        } else {
-          console.warn('[server] pillars_groq_key.json is encrypted with GROQ_SECRET but GROQ_SECRET is not set');
-        }
-      } else if (typeof parsed === 'string') {
-        GROQ_KEY = parsed;
-      }
     } catch (e) {
       // If parsing fails, assume plaintext string
       if (raw && raw.trim().length) GROQ_KEY = raw.trim();
@@ -184,10 +177,9 @@ try {
 // New endpoint: setup encrypted Groq key (called from UI on first-run)
 app.post('/api/groq-key/setup', async (req, res) => {
   try {
-    const { password, apiKey: providedKey, updateSource } = req.body || {};
-    if (!password) return res.status(400).json({ error: 'Password required' });
+    const { apiKey: providedKey, updateSource } = req.body || {};
 
-    // Decide which plaintext key to encrypt: provided in request or fallback to PLAINTEXT_GROQ_KEY
+    // Decide which plaintext key to persist: provided in request or fallback to PLAINTEXT_GROQ_KEY
     let plaintext = (providedKey && providedKey.trim()) ? providedKey.trim() : null;
     if (!plaintext && typeof PLAINTEXT_GROQ_KEY === 'string' && PLAINTEXT_GROQ_KEY.length > 0) {
       plaintext = PLAINTEXT_GROQ_KEY;
@@ -195,28 +187,28 @@ app.post('/api/groq-key/setup', async (req, res) => {
 
     if (!plaintext) return res.status(400).json({ error: 'No API key provided and no hardcoded key available' });
 
-    const encrypted = encryptWithPassword(plaintext, password);
+    // Persist plaintext key (encryption is intentionally disabled per user request)
     const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
     fs.mkdirSync(DB_DIR, { recursive: true });
-    fs.writeFileSync(groqFile, JSON.stringify(encrypted, null, 2), 'utf8');
+    fs.writeFileSync(groqFile, JSON.stringify(plaintext, null, 2), 'utf8');
 
-    // generate and persist recovery token hash
+    // generate and persist recovery token hash for compatibility
     const recoveryToken = crypto.randomBytes(32).toString('base64');
     saveRecoveryTokenHash(recoveryToken);
 
-    // Keep key decrypted in memory for this session
+    // Keep key available in memory for this session
     decryptedGroqApiKey = plaintext;
 
-    // Only update groq-key-manager.js if explicitly requested by the client
+    // Optionally update groq-key-manager.js to clear any previous encrypted payload
     let updatedSource = false;
     let updateError = null;
     if (updateSource) {
       try {
         const mgrPath = path.join(__dirname, 'groq-key-manager.js');
         let mgr = fs.readFileSync(mgrPath, 'utf8');
-        const encryptedText = JSON.stringify(encrypted, null, 2);
+        // Clear ENCRYPTED_KEY and set PLAINTEXT_GROQ_KEY to empty (avoid hardcoding sensitive values)
         if (/const ENCRYPTED_KEY = \{[\s\S]*?\};/m.test(mgr)) {
-          mgr = mgr.replace(/const ENCRYPTED_KEY = \{[\s\S]*?\};/m, `const ENCRYPTED_KEY = ${encryptedText};`);
+          mgr = mgr.replace(/const ENCRYPTED_KEY = \{[\s\S]*?\};/m, `const ENCRYPTED_KEY = {};`);
         }
         if (/export const PLAINTEXT_GROQ_KEY = [\s\S]*?;/.test(mgr)) {
           mgr = mgr.replace(/export const PLAINTEXT_GROQ_KEY = [\s\S]*?;/, "export const PLAINTEXT_GROQ_KEY = '';" );
@@ -240,13 +232,12 @@ app.post('/api/groq-key/setup', async (req, res) => {
 // This endpoint is intended for debugging during setup when the UI flow is problematic.
 app.post('/api/groq-key/force-setup', (req, res) => {
   try {
-    const { password, apiKey } = req.body || {};
-    if (!password || !apiKey) return res.status(400).json({ error: 'password and apiKey required' });
-    const encrypted = encryptWithPassword(apiKey, password);
+    const { apiKey } = req.body || {};
+    if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
     const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
     fs.mkdirSync(DB_DIR, { recursive: true });
-    fs.writeFileSync(groqFile, JSON.stringify(encrypted, null, 2), 'utf8');
-    // persist recovery token
+    fs.writeFileSync(groqFile, JSON.stringify(apiKey, null, 2), 'utf8');
+    // persist recovery token for compatibility
     const recoveryToken = crypto.randomBytes(32).toString('base64');
     saveRecoveryTokenHash(recoveryToken);
     // also set in-memory
@@ -291,53 +282,61 @@ if (fs.existsSync(DIST_DIR)) {
 // Get encrypted Groq API key (auto-decrypts if password is set)
 app.get('/api/groq-key', (req, res) => {
   if (decryptedGroqApiKey) {
-    res.json({ key: decryptedGroqApiKey, status: 'decrypted' });
-  } else {
-    res.status(401).json({ error: 'Key not decrypted yet', status: 'locked' });
+    return res.json({ key: decryptedGroqApiKey, status: 'decrypted' });
   }
+
+  // Check environment override
+  if (GROQ_KEY) return res.json({ key: GROQ_KEY, status: 'env' });
+
+  // Fallback: try to read stored file and return plaintext if present
+  try {
+    const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
+    if (fs.existsSync(groqFile)) {
+      const raw = fs.readFileSync(groqFile, 'utf8');
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'string' && parsed.trim().length) return res.json({ key: parsed.trim(), status: 'plaintext' });
+      } catch (e) {
+        if (raw && raw.trim().length) return res.json({ key: raw.trim(), status: 'plaintext' });
+      }
+    }
+  } catch (e) {
+    // ignore and fall through
+  }
+
+  return res.status(404).json({ error: 'No Groq key available' });
 });
 
 // Decrypt key with password
 app.post('/api/groq-key/decrypt', (req, res) => {
-  const { password } = req.body;
-  if (!password) {
-    return res.status(400).json({ error: 'Password required' });
-  }
-  
+  const { password } = req.body || {};
+
   try {
-    try {
-      decryptedGroqApiKey = getGroqApiKey(password);
-      return res.json({ success: true, key: decryptedGroqApiKey });
-    } catch (err) {
-      // If there's no encrypted key in the key-manager, fall back to reading a legacy plaintext file
-      // This makes first-run unlock easier for users who still have an unencrypted `pillars_groq_key.json`.
-      const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
+    // getGroqApiKey will return plaintext from env or hardcoded if available
+    decryptedGroqApiKey = getGroqApiKey(password);
+    if (decryptedGroqApiKey) return res.json({ success: true, key: decryptedGroqApiKey });
+
+    // Fallback to reading a legacy plaintext file
+    const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
+    if (fs.existsSync(groqFile)) {
+      const raw = fs.readFileSync(groqFile, 'utf8');
       try {
-        if (fs.existsSync(groqFile)) {
-          const raw = fs.readFileSync(groqFile, 'utf8');
-          // if file contains a simple string (legacy/plaintext), accept it and keep it in memory
-          try {
-            const parsed = JSON.parse(raw);
-            // if parsed is a string, treat as legacy plaintext
-            if (typeof parsed === 'string' && parsed.trim().length) {
-              decryptedGroqApiKey = parsed.trim();
-              return res.json({ success: true, key: decryptedGroqApiKey, note: 'used_plaintext_file' });
-            }
-          } catch (e) {
-            // not JSON — treat raw as plaintext
-            if (raw && raw.trim().length) {
-              decryptedGroqApiKey = raw.trim();
-              return res.json({ success: true, key: decryptedGroqApiKey, note: 'used_plaintext_file' });
-            }
-          }
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'string' && parsed.trim().length) {
+          decryptedGroqApiKey = parsed.trim();
+          return res.json({ success: true, key: decryptedGroqApiKey, note: 'used_plaintext_file' });
         }
       } catch (e) {
-        // ignore and fall through to error
+        if (raw && raw.trim().length) {
+          decryptedGroqApiKey = raw.trim();
+          return res.json({ success: true, key: decryptedGroqApiKey, note: 'used_plaintext_file' });
+        }
       }
-      throw err;
     }
+
+    return res.status(404).json({ error: 'No Groq key available' });
   } catch (error) {
-    res.status(401).json({ error: error.message });
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 
@@ -363,30 +362,17 @@ app.post('/api/groq-key/load-plaintext', requireAuth, (req, res) => {
 
 // Change passphrase: requires currentPassword and newPassword
 app.post('/api/groq-key/change', requireAuth, (req, res) => {
-  const { currentPassword, newPassword } = req.body || {};
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' });
+  // Encryption has been retired; treat this endpoint as a key-replace endpoint.
+  const { apiKey } = req.body || {};
+  if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
 
   try {
     const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
-    if (!fs.existsSync(groqFile)) return res.status(404).json({ error: 'No stored encrypted key found' });
-    const raw = fs.readFileSync(groqFile, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (!(parsed && parsed.data && parsed.tag && parsed.salt && parsed.iv)) return res.status(400).json({ error: 'Stored key is not password-encrypted format' });
+    fs.mkdirSync(DB_DIR, { recursive: true });
+    fs.writeFileSync(groqFile, JSON.stringify(apiKey, null, 2), 'utf8');
 
-    // Try decrypting with currentPassword
-    let decrypted;
-    try {
-      decrypted = decryptWithPassword(parsed, currentPassword);
-    } catch (e) {
-      return res.status(401).json({ error: 'Current password invalid' });
-    }
-
-    // Re-encrypt with new password
-    const newEncrypted = encryptWithPassword(decrypted, newPassword);
-    fs.writeFileSync(groqFile, JSON.stringify(newEncrypted, null, 2), 'utf8');
-
-    // Keep new key decrypted in memory for this session
-    decryptedGroqApiKey = decrypted;
+    // Keep new key available in memory for this session
+    decryptedGroqApiKey = apiKey;
     return res.json({ success: true });
   } catch (e) {
     console.error('[change-passphrase] Error:', e);
@@ -395,6 +381,62 @@ app.post('/api/groq-key/change', requireAuth, (req, res) => {
 });
 
 // ==================== LOCAL STORAGE ====================
+
+// Matched betting routes
+import matchedRouter from './server/routes/matched_betting.js';
+app.use('/api/matched-betting', matchedRouter);
+
+
+// ==================== ANKI STATS ====================
+app.get('/api/anki-stats', (req, res) => {
+  try {
+    const f = path.join(DB_DIR, 'anki_stats.json');
+    if (!fs.existsSync(f)) return res.json({ stats: [] });
+    const raw = fs.readFileSync(f, 'utf8');
+    return res.json({ stats: JSON.parse(raw) });
+  } catch (e) {
+    console.error('[/api/anki-stats] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Trigger parse of PDFs from configured folder (server-side)
+app.post('/api/anki-stats/parse', requireAuth, async (req, res) => {
+  try {
+    const { dir } = req.body || {};
+    const parsed = await parseAnkiDir(dir);
+    return res.json({ success: true, parsed });
+  } catch (e) {
+    console.error('[/api/anki-stats/parse] Error:', e && e.message ? e.message : e);
+    return res.status(500).json({ error: 'internal_error', message: e && e.message ? e.message : String(e) });
+  }
+});
+
+// ==================== EXAM TOPICS CRUD ====================
+app.get('/api/exams', (req, res) => {
+  try {
+    const f = path.join(DB_DIR, 'exam_topics.json');
+    if (!fs.existsSync(f)) return res.json({ exams: [] });
+    const raw = fs.readFileSync(f, 'utf8');
+    const parsed = JSON.parse(raw);
+    return res.json(parsed);
+  } catch (e) {
+    console.error('[/api/exams] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.post('/api/exams', requireAuth, (req, res) => {
+  try {
+    const body = req.body || {};
+    const f = path.join(DB_DIR, 'exam_topics.json');
+    fs.writeFileSync(f, JSON.stringify(body, null, 2), 'utf8');
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[/api/exams POST] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
 
 app.get('/api/store/:key', (req, res) => {
   const key = req.params.key;
@@ -439,14 +481,20 @@ app.post('/api/store/:key', requireAuth, (req, res) => {
   const key = req.params.key;
   const filePath = path.join(DB_DIR, `${key}.json`);
   try {
-    // If saving the Groq key and a GROQ_SECRET is configured, encrypt at rest
-    if (key === 'pillars_groq_key' && GROQ_SECRET) {
-      const payload = (typeof req.body === 'string') ? req.body : JSON.stringify(req.body);
-      const encrypted = encryptPayload(payload, GROQ_SECRET);
-      fs.writeFileSync(filePath, JSON.stringify(encrypted, null, 2));
-
-      // Also update in-memory key if possible
-      try { decryptedGroqApiKey = decryptPayload(encrypted, GROQ_SECRET); } catch (_) {}
+    // If saving the Groq key, persist plaintext (encryption disabled by request)
+    if (key === 'pillars_groq_key') {
+      // Accept either a primitive string or an object and persist a string when appropriate
+      if (typeof req.body === 'string') {
+        fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+        decryptedGroqApiKey = req.body;
+      } else {
+        // If client sent an object, write it JSON; try to extract a string key if present
+        fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
+        if (typeof req.body === 'object') {
+          // common case: { key: '...' } or plain string inside
+          if (typeof req.body.key === 'string' && req.body.key.trim().length) decryptedGroqApiKey = req.body.key.trim();
+        }
+      }
     } else {
       fs.writeFileSync(filePath, JSON.stringify(req.body, null, 2));
     }
@@ -454,6 +502,143 @@ app.post('/api/store/:key', requireAuth, (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).send('Error writing data');
+  }
+});
+
+/**
+ * Export entire DB as merged JSON (GET returns JSON; POST can request Drive upload)
+ */
+app.get('/api/export-db', (req, res) => {
+  try {
+    const files = fs.readdirSync(DB_DIR).filter(f => f.endsWith('.json'));
+    const out = {};
+    for (const f of files) {
+      try {
+        const raw = fs.readFileSync(path.join(DB_DIR, f), 'utf8');
+        out[path.basename(f, '.json')] = JSON.parse(raw);
+      } catch (e) {
+        try {
+          out[path.basename(f, '.json')] = fs.readFileSync(path.join(DB_DIR, f), 'utf8');
+        } catch (e2) {
+          out[path.basename(f, '.json')] = null;
+        }
+      }
+    }
+
+    const exportPath = path.join(DB_DIR, 'exported_database.json');
+    fs.writeFileSync(exportPath, JSON.stringify(out, null, 2), 'utf8');
+
+    return res.json(out);
+  } catch (e) {
+    console.error('[/api/export-db] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Save a Google Drive OAuth token / client config for later automated uploads
+app.post('/api/google-drive/save-token', requireAuth, (req, res) => {
+  try {
+    const body = req.body || {};
+    const f = path.join(DB_DIR, 'google_drive_token.json');
+    fs.writeFileSync(f, JSON.stringify(body, null, 2), 'utf8');
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[/api/google-drive/save-token] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.get('/api/google-drive/status', requireAuth, (req, res) => {
+  const hasServiceAccount = !!process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  const tokenFile = path.join(DB_DIR, 'google_drive_token.json');
+  const hasTokenFile = fs.existsSync(tokenFile);
+  return res.json({ hasServiceAccount, hasTokenFile });
+});
+
+async function uploadToDriveByServiceAccount(filePath, filename) {
+  const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!keyJson) throw new Error('service_account_key_missing');
+  const credentials = JSON.parse(keyJson);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+  });
+  const authClient = await auth.getClient();
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  // Search for existing file with same name
+  const list = await drive.files.list({ q: `name='${filename.replace("'","\\'")}' and trashed=false`, fields: 'files(id,name)' });
+  const media = { mimeType: 'application/json', body: fs.createReadStream(filePath) };
+  if (list.data.files && list.data.files.length > 0) {
+    const id = list.data.files[0].id;
+    await drive.files.update({ fileId: id, media, fields: 'id,name' });
+    return { updated: true, id };
+  } else {
+    const created = await drive.files.create({ requestBody: { name: filename }, media, fields: 'id,name' });
+    return { created: true, id: created.data.id };
+  }
+}
+
+async function uploadToDriveByOAuthToken(filePath, filename) {
+  const tokenFile = path.join(DB_DIR, 'google_drive_token.json');
+  if (!fs.existsSync(tokenFile)) throw new Error('oauth_token_missing');
+  const cfg = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+  const { clientId, clientSecret, redirectUri, token } = cfg;
+  if (!clientId || !clientSecret || !token) throw new Error('oauth_config_incomplete');
+  const oAuth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri || 'urn:ietf:wg:oauth:2.0:oob');
+  oAuth2Client.setCredentials(token);
+  const drive = google.drive({ version: 'v3', auth: oAuth2Client });
+
+  const list = await drive.files.list({ q: `name='${filename.replace("'","\\'")}' and trashed=false`, fields: 'files(id,name)' });
+  const media = { mimeType: 'application/json', body: fs.createReadStream(filePath) };
+  if (list.data.files && list.data.files.length > 0) {
+    const id = list.data.files[0].id;
+    await drive.files.update({ fileId: id, media, fields: 'id,name' });
+    return { updated: true, id };
+  } else {
+    const created = await drive.files.create({ requestBody: { name: filename }, media, fields: 'id,name' });
+    return { created: true, id: created.data.id };
+  }
+}
+
+app.post('/api/export-db', requireAuth, async (req, res) => {
+  try {
+    // ensure file exists and is fresh
+    const files = fs.readdirSync(DB_DIR).filter(f => f.endsWith('.json'));
+    const out = {};
+    for (const f of files) {
+      try {
+        const raw = fs.readFileSync(path.join(DB_DIR, f), 'utf8');
+        out[path.basename(f, '.json')] = JSON.parse(raw);
+      } catch (e) {
+        out[path.basename(f, '.json')] = null;
+      }
+    }
+    const filename = (req.body && req.body.filename) || 'pillars_database_export.json';
+    const exportPath = path.join(DB_DIR, filename);
+    fs.writeFileSync(exportPath, JSON.stringify(out, null, 2), 'utf8');
+
+    if (req.body && req.body.drive) {
+      // Try service account first
+      try {
+        const r = await uploadToDriveByServiceAccount(exportPath, filename);
+        return res.json({ success: true, drive: r });
+      } catch (e) {
+        // fallback to OAuth token
+        try {
+          const r = await uploadToDriveByOAuthToken(exportPath, filename);
+          return res.json({ success: true, drive: r });
+        } catch (e2) {
+          console.error('[/api/export-db DRIVE] Error:', e.message, e2.message);
+          return res.status(500).json({ error: 'drive_upload_failed', details: [e.message, e2.message] });
+        }
+      }
+    }
+
+    return res.json({ success: true, path: exportPath });
+  } catch (e) {
+    console.error('[/api/export-db POST] Error:', e);
+    return res.status(500).json({ error: 'internal_error' });
   }
 });
 
@@ -499,7 +684,8 @@ app.post('/api/groq', requireAuth, async (req, res) => {
 // Return a curated list of models (some may require access)
 app.get('/api/groq-models', (req, res) => {
   try {
-    return res.json({ models: [ 'openai/gpt-oss-120b', 'groq/compound', 'google/gemini-2.0-flash-001', 'google/gemini-3-pro-preview' ] });
+    // Only expose `groq/compound` as the single supported model.
+    return res.json({ models: [ 'groq/compound' ] });
   } catch (e) {
     console.error('[/api/groq-models] Error:', e);
     return res.status(500).json({ error: e.message });
@@ -509,11 +695,11 @@ app.get('/api/groq-models', (req, res) => {
 // Persist a chosen model to disk
 app.post('/api/groq-model-choice', requireAuth, (req, res) => {
   try {
-    const model = req.body && req.body.model;
-    if (!model) return res.status(400).json({ error: 'model required' });
+    // Ignore user-supplied model and persist the forced model
+    const model = 'groq/compound';
     const filePath = path.join(DB_DIR, 'pillars_groq_model_choice.json');
     fs.writeFileSync(filePath, JSON.stringify({ model }, null, 2));
-    return res.json({ success: true });
+    return res.json({ success: true, model });
   } catch (e) {
     console.error('[/api/groq-model-choice] Error:', e);
     return res.status(500).json({ error: e.message });
@@ -524,10 +710,10 @@ app.post('/api/groq-model-choice', requireAuth, (req, res) => {
 app.get('/api/groq-model-choice', (req, res) => {
   try {
     const filePath = path.join(DB_DIR, 'pillars_groq_model_choice.json');
-    if (!fs.existsSync(filePath)) return res.json({ model: 'openai/gpt-oss-120b' });
+    if (!fs.existsSync(filePath)) return res.json({ model: 'groq/compound' });
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(raw);
-    return res.json({ model: parsed.model || 'openai/gpt-oss-120b' });
+    return res.json({ model: parsed.model || 'groq/compound' });
   } catch (e) {
     console.error('[/api/groq-model-choice GET] Error:', e);
     return res.status(500).json({ error: e.message });
@@ -749,31 +935,54 @@ app.use('/api/*', (req, res) => {
 });
 
 // === STARTUP: Decrypt Groq API Key ===
+export let httpServer = null;
+
 async function startServer() {
-  // Check if password is in environment variable
-  const envPassword = process.env.GROQ_KEY_PASSWORD;
-  
-  if (envPassword) {
+  // Prefer explicit plaintext keys from env or persisted file over any decryption flow
+  if (!decryptedGroqApiKey && process.env.GROQ_KEY && process.env.GROQ_KEY.length > 0) {
+    decryptedGroqApiKey = process.env.GROQ_KEY;
+    console.log('✅ Groq API key loaded from GROQ_KEY environment variable');
+  }
+
+  if (!decryptedGroqApiKey) {
     try {
-      decryptedGroqApiKey = getGroqApiKey(envPassword);
-      console.log('✅ Groq API key decrypted from environment variable');
-    } catch (error) {
-      console.error('❌ Failed to decrypt key with environment password:', error.message);
+      const groqFile = path.join(DB_DIR, 'pillars_groq_key.json');
+      if (fs.existsSync(groqFile)) {
+        const raw = fs.readFileSync(groqFile, 'utf8');
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed === 'string' && parsed.trim().length) {
+            decryptedGroqApiKey = parsed.trim();
+            console.log('✅ Groq API key loaded from plaintext file');
+          }
+        } catch (e) {
+          if (raw && raw.trim().length) {
+            decryptedGroqApiKey = raw.trim();
+            console.log('✅ Groq API key loaded from plaintext file');
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
     }
   }
   
-  // Do NOT automatically use a hardcoded PLAINTEXT_GROQ_KEY on startup. Instead the UI
-  // should prompt the user on first run to set a passphrase and persist an encrypted key.
-  if (!decryptedGroqApiKey && typeof PLAINTEXT_GROQ_KEY === 'string' && PLAINTEXT_GROQ_KEY.length > 0) {
-    console.log('⚠️ A hardcoded PLAINTEXT_GROQ_KEY exists in source. The server will NOT auto-use it.');
-    console.log('Use the UI to set a passphrase and encrypt the key on first run (/api/groq-key/setup).');
-  }
-  
   // Start server
-  app.listen(PORT, () => {
+  httpServer = app.listen(PORT, () => {
     console.log(`Pillars server: http://localhost:${PORT}`);
     if (!decryptedGroqApiKey) {
-      console.log('⚠️  Groq API key not decrypted. Set GROQ_KEY_PASSWORD environment variable or decrypt via UI.');
+      console.log('ℹ️  No Groq API key configured. Provide via GROQ_KEY environment variable or /api/groq-key/setup');
+    }
+    // Log current model choice if present
+    try {
+      const modelFile = path.join(DB_DIR, 'pillars_groq_model_choice.json');
+      if (fs.existsSync(modelFile)) {
+        const raw = fs.readFileSync(modelFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.model) console.log(`✅ Groq model choice: ${parsed.model}`);
+      }
+    } catch (e) {
+      console.warn('[startup] Failed to read model choice', e.message);
     }
   });
 }

@@ -44,13 +44,7 @@ L'applicazione chiederà la chiave API ogni volta che viene avviata. La chiave v
 
 ## Troubleshooting
 
-**"NO_ENCRYPTED_KEY" error:**
-- You haven't completed Step 3 (updating ENCRYPTED_KEY in groq-key-manager.js)
-
-**"INVALID_PASSWORD" error:**
-- The password is incorrect
-- Check that you're using the same password you used in encrypt-once.js
-
-**Key not working:**
-- The original Groq API key may have expired or been revoked
-- Generate a new key from Groq and re-run the encryption process
+Encryption has been retired in this repository. If you see key-related errors:
+- Ensure `GROQ_KEY` environment variable is set, or
+- Persist a plaintext key using the `/api/groq-key/setup` or `/api/groq-key/force-setup` endpoints, or
+- Place a plaintext string in `db/pillars_groq_key.json` (not recommended for production).

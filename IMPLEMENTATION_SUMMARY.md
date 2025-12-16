@@ -95,3 +95,12 @@ I seguenti componenti sono stati rimossi o deprecati:
 
 ⚠️ **Git Security**: Assicurati che `.env` e `db/*.json` siano in `.gitignore`.
 
+## Esportazione DB e Google Drive
+
+- Aggiunto endpoint `GET /api/export-db` che restituisce l'intero DB unificato in JSON e salva `db/exported_database.json`.
+- Aggiunto endpoint `POST /api/export-db` che, se chiamato con `{ drive: true }`, prova a caricare il file su Google Drive.
+- Il caricamento su Drive può avvenire tramite:
+  - Service Account: impostare la variabile d'ambiente `GOOGLE_SERVICE_ACCOUNT_KEY` con il JSON della service account;
+  - OAuth token: salvare un oggetto con `clientId`, `clientSecret`, `redirectUri` e `token` in `db/google_drive_token.json` tramite `POST /api/google-drive/save-token`.
+- Se il file esiste già su Drive con lo stesso nome, viene aggiornato (sovrascritto).
+

@@ -42,3 +42,8 @@ Dove salvare i dati
 
 Suggerimenti
 - Se vuoi un'interfaccia, posso aggiungere un piccolo componente React che mostra e modifica `data/items.json`.
+
+Aggiornamenti recenti
+- La sezione è ora accessibile come una tab dedicata **OGGETTINI** nella sidebar.
+- Il pulsante **Aggiungi** compare solo quando sei in `Edit Mode` (icona matita nella sidebar), per evitare modifiche accidentali.
+  - Gli oggetti possono essere eliminati con il pulsante `Elimina` (richiede conferma).
