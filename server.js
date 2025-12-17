@@ -760,8 +760,8 @@ app.post('/api/groq', requireAuth, async (req, res) => {
 // Return a curated list of models (some may require access)
 app.get('/api/groq-models', (req, res) => {
   try {
-    // Only expose `groq/compound` as the single supported model.
-    return res.json({ models: [ 'groq/compound' ] });
+    // Expose a few candidate models; the server will accept any model the user requests in POST
+    return res.json({ models: [ 'groq/compound', 'groq/gemini-70b', 'openai/gpt-oss-120b' ] });
   } catch (e) {
     console.error('[/api/groq-models] Error:', e);
     return res.status(500).json({ error: e.message });
@@ -771,8 +771,9 @@ app.get('/api/groq-models', (req, res) => {
 // Persist a chosen model to disk
 app.post('/api/groq-model-choice', requireAuth, (req, res) => {
   try {
-    // Ignore user-supplied model and persist the forced model
-    const model = 'groq/compound';
+    // Accept user-supplied model and persist it (requires server auth if AUTH_TOKEN set)
+    const modelFromClient = (req.body && req.body.model) ? String(req.body.model).trim() : null;
+    const model = modelFromClient || 'groq/compound';
     const filePath = path.join(DB_DIR, 'pillars_groq_model_choice.json');
     fs.writeFileSync(filePath, JSON.stringify({ model }, null, 2));
     return res.json({ success: true, model });
