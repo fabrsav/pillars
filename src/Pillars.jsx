@@ -901,69 +901,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                       <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-wider">{r.platform || 'Sconosciuto'}</span>
                         <h5 className="text-sm font-bold text-white">{r.item}</h5>
-              })}
-
-              {archiveModal.open && (
-                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-                  <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                    <button onClick={cancelArchive} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X size={18} /></button>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                        <Receipt size={20} className="text-white" />
                       </div>
-                      <div>
-                        <h3 className="text-white font-bold">Archivia rimborso</h3>
-                        <p className="text-slate-400 text-xs">Conferma la data di rimborso per completare l'archiviazione.</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-slate-400">Rimborso</label>
-                        <div className="text-sm text-white font-semibold">{archiveModal.target?.item}</div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-slate-400">Data rimborso (YYYY-MM-DD)</label>
-                        <input value={archiveModal.refundDate} onChange={e => setArchiveModal(prev => ({...prev, refundDate: e.target.value}))} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white" />
-                      </div>
-
-                      <div className="flex justify-end gap-3">
-                        <button onClick={cancelArchive} className="px-3 py-1 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Annulla</button>
-                        <button onClick={confirmArchive} className="px-3 py-1 rounded bg-amber-400 text-slate-900 hover:brightness-95">Conferma archivia</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showArchived && (
-                <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/10">
-                  <h6 className="text-base font-bold mb-3">Archivio rimborsi <span className="text-slate-400 text-sm">({(archivedRefunds || []).length})</span></h6>
-                  {(archivedRefunds || []).length === 0 ? (
-                    <div className="text-sm text-slate-400">Archivio vuoto</div>
-                  ) : (
-                    (archivedRefunds || []).map(a => (
-                      <div key={a.id} className="flex justify-between items-center py-3 border-b border-slate-800">
-                        <div>
-                          <div className="text-white text-sm font-semibold">{a.item}</div>
-                          <div className="text-xs text-slate-400 mt-1">Rimborsato: {a.refundDate} • Archivio: {a.archivedAt && a.archivedAt.split('T')[0]}</div>
-                        </div>
-                        <div className="flex gap-3">
-                          <button onClick={() => unarchiveRefund(a.id)} className="text-slate-300 hover:text-emerald-400 bg-slate-800/30 px-3 py-1 rounded">Ripristina</button>
-                          <a href={`/api/store/pillars_refunds_archive_v1`} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-amber-400 bg-slate-800/30 px-3 py-1 rounded">Apri archivio</a>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-                      </div>
-
-                      {/* Toast message */}
-                      {toastMessage && (
-                        <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-900 rounded-lg px-4 py-2 shadow-lg animate-in fade-in">{toastMessage}</div>
-                      )}
 
                       <span className={`text-lg font-bold ${theme.text}`}>€{((v) => Number.isFinite(v) ? v.toFixed(2) : '0.00')(parseFloat(r.amount || 0))}</span>
                     </div>
@@ -1045,6 +983,68 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Toast message */}
+          {toastMessage && (
+            <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-900 rounded-lg px-4 py-2 shadow-lg animate-in fade-in">{toastMessage}</div>
+          )}
+          
+          {archiveModal.open && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+              <div className="bg-slate-900 border border-indigo-500/30 w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                <button onClick={cancelArchive} className="absolute top-4 right-4 text-slate-500 hover:text-white z-10"><X size={18} /></button>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                    <Receipt size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold">Archivia rimborso</h3>
+                    <p className="text-slate-400 text-xs">Conferma la data di rimborso per completare l'archiviazione.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-400">Rimborso</label>
+                    <div className="text-sm text-white font-semibold">{archiveModal.target?.item}</div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Data rimborso (YYYY-MM-DD)</label>
+                    <input value={archiveModal.refundDate} onChange={e => setArchiveModal(prev => ({...prev, refundDate: e.target.value}))} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm text-white" />
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button onClick={cancelArchive} className="px-3 py-1 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Annulla</button>
+                    <button onClick={confirmArchive} className="px-3 py-1 rounded bg-amber-400 text-slate-900 hover:brightness-95">Conferma archivia</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showArchived && (
+            <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/10">
+              <h6 className="text-base font-bold mb-3">Archivio rimborsi <span className="text-slate-400 text-sm">({(archivedRefunds || []).length})</span></h6>
+              {(archivedRefunds || []).length === 0 ? (
+                <div className="text-sm text-slate-400">Archivio vuoto</div>
+              ) : (
+                (archivedRefunds || []).map(a => (
+                  <div key={a.id} className="flex justify-between items-center py-3 border-b border-slate-800">
+                    <div>
+                      <div className="text-white text-sm font-semibold">{a.item}</div>
+                      <div className="text-xs text-slate-400 mt-1">Rimborsato: {a.refundDate} • Archivio: {a.archivedAt && a.archivedAt.split('T')[0]}</div>
+                    </div>
+                    <div className="flex gap-3">
+                      <button onClick={() => unarchiveRefund(a.id)} className="text-slate-300 hover:text-emerald-400 bg-slate-800/30 px-3 py-1 rounded">Ripristina</button>
+                      <a href={`/api/store/pillars_refunds_archive_v1`} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-amber-400 bg-slate-800/30 px-3 py-1 rounded">Apri archivio</a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
             </div>
           )}
         </>
