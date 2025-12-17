@@ -1312,12 +1312,15 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
         )}
 
       {mode === 'list' && (
-        <div className="grid grid-cols-2 gap-2 mt-4">
+        <div className="grid grid-cols-3 gap-2 mt-4">
           <button onClick={() => setMode('manual')} className="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[10px] text-slate-300 font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
             <Plus size={12}/> Manuale
           </button>
           <button onClick={() => setMode('smart')} className="py-2 bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-500/30 rounded-xl text-[10px] text-indigo-200 font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
             <Sparkles size={12}/> Smart AI
+          </button>
+          <button onClick={() => setMode('bulk')} className="py-2 bg-emerald-900/20 hover:bg-emerald-900/30 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-200 font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
+            <Download size={12}/> Importa testo
           </button>
         </div>
       )}
