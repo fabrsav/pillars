@@ -621,6 +621,150 @@ RISPONDI SOLO con questo JSON (nessun altro testo):
     }
   };
 
+  // --- PARSER MANUALE (senza AI) per importare più rimborsi da testo incollato ---
+  const [bulkText, setBulkText] = useState('');
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+  // Helper: parse a simple italian date like "20 dicembre" or "21 novembre 2024" or "primo ottobre"
+  const parseItalianDate = (text) => {
+    if (!text || typeof text !== 'string') return null;
+    const months = {
+      'gennaio':'01','febbraio':'02','marzo':'03','aprile':'04','maggio':'05','giugno':'06',
+      'luglio':'07','agosto':'08','settembre':'09','ottobre':'10','novembre':'11','dicembre':'12'
+    };
+    // Normalize
+    const s = text.toLowerCase();
+
+    // Match dd mm yyyy or primo mm yyyy
+    const re = /(?:il\s*)?(\d{1,2}|primo|prima)\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)(?:\s+(\d{4}))?/i;
+    const m = s.match(re);
+    if (!m) return null;
+    let day = m[1];
+    if (day === 'primo' || day === 'prima') day = '1';
+    const month = months[m[2]];
+    let year = m[3] || (new Date()).getFullYear().toString();
+
+    // Adjust: if date appears to be in future but text hints 'in passato' or 'ritirato' we subtract a year
+    const candidate = `${year}-${month}-${day.toString().padStart(2,'0')}`;
+    try {
+      const d = new Date(candidate);
+      if (isNaN(d.getTime())) return null;
+      return candidate;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Heuristic: extract products and metadata from free text
+  const parseItemsFromText = (text) => {
+    const results = [];
+    if (!text) return results;
+    const t = text.replace(/\s+/g, ' ');
+
+    // Extract email and password
+    const emailMatch = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = emailMatch ? emailMatch[0] : null;
+    const pwdMatch = t.match(/password\s*(?:è|e'|:|is)?\s*([A-Za-z0-9!@#$%\^&*\-_.]{4,})/i);
+    const password = pwdMatch ? pwdMatch[1] : null;
+
+    // Known product keywords to help splitting (covers common patterns)
+    const keywords = ['sverniciatore','stanley cup','cricut joy','cavetti','zaino','burlesque','soundcore','vasca','kit pulizia','scrubber','anlan','coppia','coccodrillo'];
+
+    // Split by sentences/punctuation
+    const parts = t.split(/\.|;|,|\n/).map(p => p.trim()).filter(Boolean);
+
+    for (const part of parts) {
+      const lower = part.toLowerCase();
+      // Look for explicit markers
+      if (/in arrivo|arrivo il|in arrivo il|in arrivo questo|ordinato|ritirato|in passato|ritiro|ritirare|ritiro va effettuato/i.test(lower)) {
+        // attempt to find a date
+        const date = parseItalianDate(part);
+
+        // Find product name heuristically: part minus known markers
+        let item = part.replace(/.*(?:in arrivo|arrivo il|in arrivo il|in arrivo questo|ordinato|ritirato|in passato|ritiro|ritirare|ritiro va effettuato).*/i, '').trim();
+        // If item is empty, try extracting words around keywords
+        if (!item) {
+          for (const kw of keywords) {
+            if (lower.includes(kw)) {
+              const match = part.match(new RegExp(`(?:\\b(?:lo|la|il|una|un)\\s+)?(.{0,80}?${kw}.{0,80}?)$`, 'i'));
+              if (match) { item = match[1].trim(); break; }
+            }
+          }
+        }
+
+        // If still empty, fallback to whole part
+        if (!item) item = part;
+
+        // Determine status if ritirato / consegnato
+        const status = /ritirato|consegnato|arrivato/i.test(lower) ? 'Rimborsato' : 'Da Fare';
+
+        // Detect pickup info
+        let pickupCode = null;
+        const pickupMatch = part.match(/locker\s*([^,\)\n]+)/i) || part.match(/mercatino\s*([^,\)\n]+)/i) || part.match(/via\s+[^,\)\n]+/i);
+        if (pickupMatch) pickupCode = pickupMatch[0].trim();
+
+        results.push({ item: item, email, password, arrivalDate: date || '', status, notes: part, pickupCode });
+        continue;
+      }
+
+      // If sentence contains a keyword, add it
+      for (const kw of keywords) {
+        if (lower.includes(kw)) {
+          const date = parseItalianDate(part);
+          const status = /ritirato|consegnato|ritirare/i.test(lower) ? 'Rimborsato' : 'Da Fare';
+          let pickupCode = null;
+          const pickupMatch = part.match(/locker\s*([^,\)\n]+)/i) || part.match(/mercatino\s*([^,\)\n]+)/i) || part.match(/via\s+[^,\)\n]+/i);
+          if (pickupMatch) pickupCode = pickupMatch[0].trim();
+          results.push({ item: part.trim(), email, password, arrivalDate: date || '', status, notes: part, pickupCode });
+          break;
+        }
+      }
+    }
+
+    return results;
+  };
+
+  const handleBulkParse = async () => {
+    if (!bulkText || !bulkText.trim()) return;
+    setIsBulkProcessing(true);
+    try {
+      const items = parseItemsFromText(bulkText);
+      if (!items || items.length === 0) {
+        alert('Nessun rimborso riconosciuto dal testo. Prova a essere più dettagliato o usa il formato manuale.');
+        return;
+      }
+
+      const nowISO = new Date().toISOString().split('T')[0];
+      const newEntries = items.map(it => ({
+        id: Date.now() + Math.random(),
+        platform: '',
+        item: it.item || 'Sconosciuto',
+        email: it.email || '',
+        password: it.password || '',
+        amount: 0,
+        arrivalDate: it.arrivalDate || '',
+        windowDays: 30,
+        requestDate: '',
+        status: it.status || 'Da Fare',
+        notes: it.notes || '',
+        history: [{ id: Date.now(), text: it.notes || '', status: it.status || 'Da Fare', summary: 'Import manuale', timestamp: nowISO }],
+        trackingCode: '',
+        pickupCode: it.pickupCode || ''
+      }));
+
+      setRefunds(prev => [...(prev || []), ...newEntries]);
+      setToastMessage(`Importati ${newEntries.length} rimborsi`);
+      setTimeout(() => setToastMessage(null), 2200);
+      setBulkText('');
+      setMode('list');
+    } catch (e) {
+      console.error('Import manuale fallito', e);
+      alert('Errore durante l\'import: ' + (e.message || e));
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
   // Analizza un aggiornamento testuale di assistenza e applica i campi estratti
   const analyzeRefundUpdate = async (refundId, text) => {
     if (!text || !text.trim()) return;
