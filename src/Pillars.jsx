@@ -1057,27 +1057,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               </div>
             )}
 
-            {/* Matched betting offers (if any) */}
-            {selectedProject.id === 'betting' && offers && offers.length > 0 && (
-              <div className="bg-slate-900/40 p-2 rounded border border-slate-800 mt-2">
-                <div className="text-[10px] text-slate-300 font-bold mb-2">Offerte recenti ({offers.length})</div>
-                <div className="space-y-2">
-                  {offers.map((o, i) => (
-                    <div key={i} className="flex justify-between items-center text-[12px] p-2 rounded bg-slate-950/30 border border-slate-800">
-                      <div className="flex-1">
-                        <div className="font-bold text-white">{o.subject || '-'} </div>
-                        <div className="text-[11px] text-slate-500">{o.from} — {o.date}</div>
-                      </div>
-                      <div className="text-[12px] text-slate-200 text-right">
-                        <div>Free: {o.freeBet != null ? `€${o.freeBet}` : '-'}</div>
-                        <div>Odds: {o.odds || '-'}</div>
-                        <div className="font-bold">Est. gain: {o.estimatedGain != null ? `€${o.estimatedGain}` : '-'}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             <button type="submit" className={`w-full py-2 bg-${theme.accent}-600 hover:bg-${theme.accent}-500 text-white text-xs rounded font-bold transition-transform active:scale-95`}>Salva</button>
           </form>
         )}
