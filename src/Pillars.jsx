@@ -1140,6 +1140,33 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           </div>
         )}
 
+        {/* FORM BULK - import manuale senza AI */}
+        {mode === 'bulk' && (
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+             <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">📥 Import testo (manuale)</span>
+              <button onClick={() => setMode('list')} className="text-slate-500 hover:text-white transition-transform active:scale-90"><X size={14}/></button>
+            </div>
+            <textarea 
+              value={bulkText || ''} 
+              onChange={e => setBulkText(e.target.value)}
+              placeholder="Incolla qui il testo da cui creare rimborsi (es. SMS, email, note)..."
+              className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-xs text-white h-32 focus:ring-1 focus:ring-indigo-500 transition-all"
+            />
+            <div className="flex gap-2">
+              <button 
+                onClick={handleBulkParse}
+                disabled={isBulkProcessing || !(bulkText || '').trim()}
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                {isBulkProcessing ? 'Importo...' : 'Importa testo'}
+              </button>
+              <button type="button" onClick={() => { setBulkText(''); }} className="py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[10px] text-slate-300 font-bold">Pulisci</button>
+            </div>
+            <div className="text-[11px] text-slate-400">Il parser manuale è euristico: prova a estrarre email, password, date, e nomi dei prodotti. Se non perfetto, correggi dal pannello manuale.</div>
+          </div>
+        )}
+
       {mode === 'list' && (
         <div className="grid grid-cols-2 gap-2 mt-4">
           <button onClick={() => setMode('manual')} className="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-[10px] text-slate-300 font-bold flex items-center justify-center gap-2 transition-transform active:scale-95">
