@@ -48,7 +48,7 @@ import {
   Edit3, Gem, Droplet, Flame, CheckSquare, Library, Plane, Coins, 
   ArrowRight, Dna, Timer, Cpu, History, AlertTriangle, Crosshair, 
   Scissors, Smile, Wind, Plus, Trash2, X, GripVertical, ArrowDownUp,
-  Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock,
+  Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock, Download,
   School, Calendar, BookMarked, ShoppingBag, Mail, AlertCircle, Receipt,
   Package, CalendarClock, PhoneCall, LogIn, Eye, EyeOff, FileHeart,
   Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
