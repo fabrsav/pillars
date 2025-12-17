@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const isDev = process.env.NODE_ENV !== 'production';
+const dbFilePath = path.join(__dirname, 'data', 'items.json');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -33,6 +34,58 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
+  });
+
+  ipcMain.handle('get-db-data', () => {
+    try {
+      const data = fs.readFileSync(dbFilePath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error reading database file:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('export-db', async (event, data) => {
+    const { filePath } = await dialog.showSaveDialog({
+      title: 'Export Database',
+      defaultPath: 'pillars-db-export.json',
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+    });
+
+    if (filePath) {
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        return { success: true };
+      } catch (error) {
+        console.error('Error exporting database:', error);
+        return { success: false, error };
+      }
+    }
+    return { success: false, cancelled: true };
+  });
+
+  ipcMain.handle('import-db', async (event) => {
+    const { filePaths } = await dialog.showOpenDialog({
+      title: 'Import Database',
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+
+    if (filePaths && filePaths.length > 0) {
+      const filePath = filePaths[0];
+      try {
+        const data = fs.readFileSync(filePath, 'utf8');
+        const jsonData = JSON.parse(data);
+        fs.writeFileSync(dbFilePath, JSON.stringify(jsonData, null, 2));
+        event.sender.send('db-updated', jsonData);
+        return { success: true, data: jsonData };
+      } catch (error) {
+        console.error('Error importing database:', error);
+        return { success: false, error };
+      }
+    }
+    return { success: false, cancelled: true };
   });
 });
 
