@@ -1626,11 +1626,11 @@ RISPONDI con JSON:
         <h4 className={`text-sm font-bold uppercase ${theme.text} flex items-center gap-2`}>
           <Heart size={16}/> ILARIA OS
         </h4>
-        <div className="flex bg-slate-950/50 rounded-lg p-1 border border-slate-800">
-          {analysis && <button onClick={() => setActiveView('dashboard')} className={`p-1.5 rounded-md transition-all ${activeView==='dashboard'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Dashboard"><BarChart3 size={14}/></button>}
-          <button onClick={() => setActiveView('projects')} className={`p-1.5 rounded-md transition-all ${activeView==='projects' || activeView==='project_detail'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Progetti"><Rocket size={14}/></button>
-          <button onClick={() => setActiveView('ideas')} className={`p-1.5 rounded-md transition-all ${activeView==='ideas'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Idee"><Lightbulb size={14}/></button>
-          <button onClick={() => setActiveView('upload')} className={`p-1.5 rounded-md transition-all ${activeView==='upload' || activeView==='web_analysis'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Analisi Chat"><RefreshCw size={14}/></button>
+        <div className="flex flex-wrap items-center gap-1 bg-slate-950/50 rounded-lg p-1 border border-slate-800">
+          {analysis && <button onClick={() => setActiveView('dashboard')} className={`p-1 rounded-md transition-all ${activeView==='dashboard'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Dashboard"><BarChart3 size={14}/></button>}
+          <button onClick={() => setActiveView('projects')} className={`p-1 rounded-md transition-all ${activeView==='projects' || activeView==='project_detail'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Progetti"><Rocket size={14}/></button>
+          <button onClick={() => setActiveView('ideas')} className={`p-1 rounded-md transition-all ${activeView==='ideas'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Idee"><Lightbulb size={14}/></button>
+          <button onClick={() => setActiveView('upload')} className={`p-1 rounded-md transition-all ${activeView==='upload' || activeView==='web_analysis'?'bg-pink-500/20 text-pink-400':'text-slate-500 hover:text-slate-300'}`} title="Analisi Chat"><RefreshCw size={14}/></button>
         </div>
       </div>
 
