@@ -3397,7 +3397,7 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
         <div className="lg:col-span-4 flex flex-col gap-6">
           <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl transition-all duration-300 ease-out hover:border-white/10">
             {/* HEADER */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-white uppercase transition-all duration-300">
                     <EditableText id="main_title" defaultText="PILLARS" />
@@ -3406,11 +3406,11 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                   <EditableText id={`status_${activeTab}`} defaultText={currentTheme.status} />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap items-center">
                 <button onClick={() => {
                     window.TEXT_EDIT_MODE = !window.TEXT_EDIT_MODE;
                     window.dispatchEvent(new Event('pillars-text-edit-toggle'));
-                }} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Attiva Modifica Testo" data-no-edit>
+                }} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Attiva Modifica Testo" data-no-edit>
                     <Edit3 size={20} className={window.TEXT_EDIT_MODE ? "text-green-400" : "text-slate-400"} />
                 </button>
                 <button onClick={async () => {
@@ -3419,21 +3419,21 @@ Sii diretto, motivante ma onesto. Max 200 parole. Usa i dati specifici che vedi.
                     } catch (err) {
                       console.error("Failed to open VS Code", err);
                     }
-                }} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Apri VS Code" data-no-edit>
+                }} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Apri VS Code" data-no-edit>
                     <Code size={20} className="text-indigo-400" />
                 </button>
-                <button onClick={() => setNexusOpen(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" data-no-edit>
+                <button onClick={() => setNexusOpen(true)} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" data-no-edit>
                     <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
                     <Cpu size={20} className="text-cyan-400" />
                 </button>
-                <button onClick={() => setExamsOpen(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Esami / Anki" data-no-edit>
+                <button onClick={() => setExamsOpen(true)} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Esami / Anki" data-no-edit>
                   <span className="absolute inset-0 bg-cyan-500 blur opacity-0 group-hover:opacity-20 rounded-full transition-opacity"></span>
                   <School size={20} className="text-indigo-400" />
                 </button>
-                <button onClick={() => setHolidayEnabled(prev => !prev)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Tema natalizio" data-no-edit>
+                <button onClick={() => setHolidayEnabled(prev => !prev)} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Tema natalizio" data-no-edit>
                   <Gift size={20} className={holidayEnabled ? 'text-red-400' : 'text-slate-400'} />
                 </button>
-                <button onClick={() => setChristmasOpen(true)} className="p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Regali di Natale" data-no-edit>
+                <button onClick={() => setChristmasOpen(true)} className="p-2 sm:p-3 bg-slate-800 rounded-full hover:bg-slate-700 transition-all duration-300 hover:scale-110 active:scale-90 group relative" title="Regali di Natale" data-no-edit>
                   <CalendarHeart size={20} className="text-cyan-400" />
                 </button>
                 {/* API key modal removed */}
