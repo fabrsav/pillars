@@ -1045,8 +1045,6 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
               )}
             </div>
           )}
-            </div>
-          )}
         </>
       )}
 
