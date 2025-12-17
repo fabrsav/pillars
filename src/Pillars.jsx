@@ -215,10 +215,13 @@ export const applyRefundUpdates = (r = {}, updates = {}, historyEntry = null) =>
 const MODEL_FAST = 'groq/compound';
 const MODEL_SMART = 'groq/compound';
 
-const callGroq = async (prompt, apiKey, model = MODEL_SMART, maxTokens = 2048, reasoningEffort = 'high') => {
+const callGroq = async (prompt, apiKey, model = null, maxTokens = 2048, reasoningEffort = 'high') => {
   if (!apiKey) throw new Error("MISSING_KEY");
   
   try {
+    // Allow override via selectedModel persisted on the server; fallback to MODEL_SMART
+    model = model || (typeof selectedModel !== 'undefined' ? selectedModel : null) || MODEL_SMART;
+
     // Usa reasoning effort alto per risposte più intelligenti
     // Consideriamo modello di reasoning qualunque modello tranne il modello "fast".
     // In questo modo Gemini / Llama / altri modelli "smart" ricevono gli stessi hint di reasoning.
