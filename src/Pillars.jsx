@@ -419,6 +419,7 @@ const RefundManager = ({ theme, apiKey, onApiKeyError, refunds, setRefunds, refu
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPassword, setShowPassword] = useState({}); 
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [sortOrder, setSortOrder] = useState('default');
 
   // Debug log
   useEffect(() => {
@@ -802,29 +803,52 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
   };
 
-  const sortRefunds = (refundsToSort) => {
+  const sortRefunds = (refundsToSort, sortBy) => {
     const priorityOrder = { high: 0, normal: 1, low: 2 };
+    const sorted = [...refundsToSort];
 
-    return [...refundsToSort].sort((a, b) => {
-      // 1. Urgency (days left) - ascending
-      const daysLeftA = getDaysLeft(a.arrivalDate);
-      const daysLeftB = getDaysLeft(b.arrivalDate);
-      if (daysLeftA !== daysLeftB) {
-        return daysLeftA - daysLeftB;
-      }
+    switch (sortBy) {
+      case 'last_modified':
+        return sorted.sort((a, b) => {
+          const lastUpdateA = a.history?.[0]?.timestamp ? new Date(a.history[0].timestamp) : new Date(0);
+          const lastUpdateB = b.history?.[0]?.timestamp ? new Date(b.history[0].timestamp) : new Date(0);
+          return lastUpdateB.getTime() - lastUpdateA.getTime();
+        });
+      case 'deadline':
+        return sorted.sort((a, b) => {
+          const daysLeftA = getDaysLeft(a.arrivalDate);
+          const daysLeftB = getDaysLeft(b.arrivalDate);
+          return daysLeftA - daysLeftB;
+        });
+      case 'platform':
+        return sorted.sort((a, b) => (a.platform || '').localeCompare(b.platform || ''));
+      case 'amount_desc':
+        return sorted.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
+      case 'amount_asc':
+        return sorted.sort((a, b) => (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0));
+      case 'default':
+      default:
+        return sorted.sort((a, b) => {
+          // 1. Urgency (days left) - ascending
+          const daysLeftA = getDaysLeft(a.arrivalDate);
+          const daysLeftB = getDaysLeft(b.arrivalDate);
+          if (daysLeftA !== daysLeftB) {
+            return daysLeftA - daysLeftB;
+          }
 
-      // 2. Priority
-      const priorityA = priorityOrder[a.priority] ?? 1;
-      const priorityB = priorityOrder[b.priority] ?? 1;
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
+          // 2. Priority
+          const priorityA = priorityOrder[a.priority] ?? 1;
+          const priorityB = priorityOrder[b.priority] ?? 1;
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
 
-      // 3. Last Modified (from history) - descending (newest first)
-      const lastUpdateA = a.history?.[0]?.timestamp ? new Date(a.history[0].timestamp) : new Date(0);
-      const lastUpdateB = b.history?.[0]?.timestamp ? new Date(b.history[0].timestamp) : new Date(0);
-      return lastUpdateB.getTime() - lastUpdateA.getTime();
-    });
+          // 3. Last Modified (from history) - descending (newest first)
+          const lastUpdateA = a.history?.[0]?.timestamp ? new Date(a.history[0].timestamp) : new Date(0);
+          const lastUpdateB = b.history?.[0]?.timestamp ? new Date(b.history[0].timestamp) : new Date(0);
+          return lastUpdateB.getTime() - lastUpdateA.getTime();
+        });
+    }
   };
 
   // Helper: determine total value of refunds that are "in ballo" (active)
@@ -835,7 +859,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
   return (
     <div className={`mt-6 rounded-2xl border ${theme.border} p-6 bg-slate-900/40 relative overflow-hidden transition-all duration-500 ease-in-out`}>
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h4 className={`text-xs font-bold ${theme.text} flex items-center gap-2 tracking-widest`}>
             <Receipt size={14}/> Gestione rimborsi
           </h4>
@@ -847,7 +871,15 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold ${theme.text}`}>€{Number.isFinite(totalPotential) ? totalPotential.toFixed(2) : '0.00'}</span>
+          <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="bg-slate-800/50 text-slate-300 text-[10px] rounded border border-slate-700 p-1">
+            <option value="default">Ordina per: Predefinito</option>
+            <option value="last_modified">Ultima modifica</option>
+            <option value="deadline">Scadenza</option>
+            <option value="platform">Piattaforma</option>
+            <option value="amount_desc">Importo (Decrescente)</option>
+            <option value="amount_asc">Importo (Crescente)</option>
+          </select>
+          <span className={`text-xs font-bold ${theme.text} ml-2`}>€{Number.isFinite(totalPotential) ? totalPotential.toFixed(2) : '0.00'}</span>
         </div> 
       </div>
 
@@ -858,7 +890,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
           ) : (
             <div className="space-y-3">
-              {sortRefunds((refunds || []).filter(r => !r.archived)).map((r) => {
+              {sortRefunds((refunds || []).filter(r => !r.archived), sortOrder).map((r) => {
                 const daysLeft = getDaysLeft(r.arrivalDate);
                 const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
                 
