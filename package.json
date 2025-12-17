@@ -3,10 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "electron.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"vite\"",
     "server": "node server.js",
     "build": "vite build",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
     "check:refunds": "node scripts/check_refunds.js",
     "sync": "git add -A && git commit -m \"chore: sync from dev container\" || echo \"No changes to commit\" && git push -u --force-with-lease origin main",
     "sync:watch": "node scripts/auto_sync.js",
@@ -57,5 +61,21 @@
     "tailwindcss-animate": "^1.0.7",
     "vite": "^5.1.6",
     "vitest": "^1.6.1"
+  },
+  "build": {
+    "appId": "com.pillars.app",
+    "productName": "Pillars",
+    "files": [
+      "dist/**/*",
+      "electron.js",
+      "preload.js",
+      "data/items.json"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "splashImage": "splash.html"
+    }
   }
 }
