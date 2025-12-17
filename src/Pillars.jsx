@@ -906,7 +906,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
                         <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-900 rounded-lg px-4 py-2 shadow-lg animate-in fade-in">{toastMessage}</div>
                       )}
 
-                      <span className={`text-lg font-bold ${theme.text}`}>€{parseFloat(r.amount || 0).toFixed(2)}</span>
+                      <span className={`text-lg font-bold ${theme.text}`}>€{((v) => Number.isFinite(v) ? v.toFixed(2) : '0.00')(parseFloat(r.amount || 0))}</span>
                     </div>
 
                     {/* Archive/Actions */}
