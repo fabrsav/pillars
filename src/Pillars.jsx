@@ -802,6 +802,31 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
   };
 
+  const sortRefunds = (refundsToSort) => {
+    const priorityOrder = { high: 0, normal: 1, low: 2 };
+
+    return [...refundsToSort].sort((a, b) => {
+      // 1. Urgency (days left) - ascending
+      const daysLeftA = getDaysLeft(a.arrivalDate);
+      const daysLeftB = getDaysLeft(b.arrivalDate);
+      if (daysLeftA !== daysLeftB) {
+        return daysLeftA - daysLeftB;
+      }
+
+      // 2. Priority
+      const priorityA = priorityOrder[a.priority] ?? 1;
+      const priorityB = priorityOrder[b.priority] ?? 1;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // 3. Last Modified (from history) - descending (newest first)
+      const lastUpdateA = a.history?.[0]?.timestamp ? new Date(a.history[0].timestamp) : new Date(0);
+      const lastUpdateB = b.history?.[0]?.timestamp ? new Date(b.history[0].timestamp) : new Date(0);
+      return lastUpdateB.getTime() - lastUpdateA.getTime();
+    });
+  };
+
   // Helper: determine total value of refunds that are "in ballo" (active)
   // Active refunds are those NOT in the closedStatuses list.
 
@@ -833,7 +858,7 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
             <div className="text-sm text-slate-400 text-center py-8">Nessun rimborso registrato</div>
           ) : (
             <div className="space-y-3">
-              {(refunds || []).filter(r => !r.archived).map((r) => {
+              {sortRefunds((refunds || []).filter(r => !r.archived)).map((r) => {
                 const daysLeft = getDaysLeft(r.arrivalDate);
                 const urgency = daysLeft <= 5 ? 'border-red-500/50 bg-red-950/20' : daysLeft <= 10 ? 'border-amber-500/30 bg-amber-950/10' : 'border-slate-700';
                 
