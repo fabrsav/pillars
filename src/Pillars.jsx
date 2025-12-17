@@ -723,13 +723,15 @@ Storico:\n"""${historyText}\n${r.notes || ''}\n"""`;
     e.preventDefault();
     if(!newRefund.item) return;
     
+    const refundWithParsedAmount = { ...newRefund, amount: parseFloat(newRefund.amount) || 0 };
+
     if (newRefund.id) {
-        setRefunds(refunds.map(r => r.id === newRefund.id ? newRefund : r));
+        setRefunds(refunds.map(r => r.id === newRefund.id ? refundWithParsedAmount : r));
     } else {
-        setRefunds([...refunds, { ...newRefund, id: Date.now() }]);
+        setRefunds([...refunds, { ...refundWithParsedAmount, id: Date.now() }]);
     }
     
-    setNewRefund({ id: null, platform: '', item: '', email: '', password: '', amount: 0, amountCurrency: 'EUR', arrivalDate: '', estimatedDelivery: '', windowDays: 30, requestDate: '', status: 'Da Fare', notes: '', history: [], trackingCode: '', pickupCode: '', orderId: '', contactPhone: '', priority: 'normal', category: '', assignedTo: '', createdAt: '', lastUpdated: '' });
+    setNewRefund({ id: null, platform: '', item: '', email: '', password: '', amount: '', amountCurrency: 'EUR', arrivalDate: '', estimatedDelivery: '', windowDays: 30, requestDate: '', status: 'Da Fare', notes: '', history: [], trackingCode: '', pickupCode: '', orderId: '', contactPhone: '', priority: 'normal', category: '', assignedTo: '', createdAt: '', lastUpdated: '' });
     setMode('list');
   };
 
