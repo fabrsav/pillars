@@ -51,7 +51,7 @@ import {
   Loader2, Watch, RefreshCw, UploadCloud, FileText, BarChart3, Lock, Download,
   School, Calendar, BookMarked, ShoppingBag, Mail, AlertCircle, Receipt,
   Package, CalendarClock, PhoneCall, LogIn, Eye, EyeOff, FileHeart,
-  Database, Save, Settings, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
+  Database, Save, Settings as SettingsIcon, ListTodo, Target, Rocket, Cloud, CloudOff, Wand2
 } from 'lucide-react';
 
 // --- HOOK PERSISTENZA LOCALE (BACKEND) ---
@@ -60,6 +60,14 @@ const useStorage = (key, initialValue) => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getDbData().then(data => {
+        if (data) {
+          setValue(data);
+        }
+        setLoaded(true);
+      });
+    } else {
     console.log(`[useStorage] Fetching ${key}...`);
     fetch(`/api/store/${key}`)
       .then(res => {
@@ -147,10 +155,11 @@ const useStorage = (key, initialValue) => {
         console.error(`[useStorage] ${key} ERROR:`, err);
         setLoaded(true);
       });
+    }
   }, [key]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !window.electronAPI) {
       fetch(`/api/store/${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
